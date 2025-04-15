@@ -4,7 +4,8 @@ const validatorMiddleware = require("../../middleware/validatorMiddleware");
 exports.uploadDoctorPhotosValidator = [
   // Validation for images
   check("images").custom((value, { req }) => {
-    // Check if 'images' field exists and has at least one image
+    console.log("req.files:", req.files);
+    console.log("req.body:", req.body);
     if (!req.files || !req.files.images || req.files.images.length === 0) {
       throw new Error("At least one image is required");
     }

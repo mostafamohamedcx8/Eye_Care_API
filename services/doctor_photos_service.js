@@ -11,14 +11,41 @@ const path = require("path");
 // 🔹 Multer Configuration
 // ==========================
 const multerStorage = multer.memoryStorage(); // Store files in memory
-const multerFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith("image")) {
-    cb(null, true);
-  } else {
-    cb(new ApiError("Not an image! Please upload only images.", 400), false);
-  }
-};
 
+
+const multerFilter = (req, file, cb) => {
+  console.log(`Processing file: ${file.fieldname} - ${file.originalname}`);
+
+  // Allow ONLY images for the 'images' field
+  if (file.fieldname === "images" && !file.mimetype.startsWith("image")) {
+    return cb(
+      new ApiError("Only images are allowed for the 'images' field.", 400),
+      false
+    );
+  }
+
+  // Allow CSV/Excel for the 'sheet' field
+  if (file.fieldname === "sheet") {
+    const allowedMimetypes = [
+      "text/csv",
+      "application/csv",
+      "application/vnd.ms-excel", // .xls
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+    ];
+
+    if (!allowedMimetypes.includes(file.mimetype)) {
+      return cb(
+        new ApiError(
+          "Only CSV or Excel files are allowed for the 'sheet' field.",
+          400
+        ),
+        false
+      );
+    }
+  }
+
+  cb(null, true);
+};
 const upload = multer({
   storage: multerStorage,
   fileFilter: multerFilter,
@@ -31,17 +58,17 @@ const upload = multer({
 // 🔹 Upload Doctor Photos (multiple images and sheet)
 // ==========================
 exports.uploadDoctorPhotos = upload.fields([
-  { name: "images" }, // Allow any number of images
-  { name: "sheet", maxCount: 1 }, // Only one sheet
+  { name: "images" }, 
+  { name: "sheet", maxCount: 1 },
 ]);
 
 // ==========================
 // 🔹 Image Resize Middleware
 // ==========================
 exports.resizeImages = asyncHandler(async (req, res, next) => {
-  if (!req.files || req.files.length === 0) return next(); // Skip if no files
-
-  const userName = req.user.name.replace(/\s+/g, ""); // Sanitize username
+  if (!req.files || req.files.length === 0) return next();
+  console.log(req.user.firstname);
+  const userName = (req.user.firstname + req.user.lastname).replace(/\s+/g, ""); // Sanitize username
   let folderName = userName;
   let folderPath = path.join(__dirname, "..", "uploads", folderName);
 
@@ -79,7 +106,7 @@ exports.resizeImages = asyncHandler(async (req, res, next) => {
 
     // Save the Excel file
     fs.writeFileSync(sheetPath, sheetFile.buffer);
-    req.body.sheet = `${folderName}/${sheetName}`; // Attach sheet path to request body
+    req.body.sheet = `${folderName}/${sheetName}`; 
   }
 
   next();
@@ -89,10 +116,10 @@ exports.resizeImages = asyncHandler(async (req, res, next) => {
 // 🔹 Create Doctor Photos Entry in Database
 // ==========================
 exports.createExamination = asyncHandler(async (req, res, next) => {
-  // Create new doctor photos entry in the database
   const DoctorPhotos = await DoctorPhotosModel.create({
     ...req.body,
-    user: req.user._id, // Assuming user is authenticated and available in req.user
+    user: req.user._id,
+    sheetType: req.body.sheet,
   });
 
   res.status(201).json({
@@ -101,6 +128,44 @@ exports.createExamination = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+// const multerFilter = (req, file, cb) => {
+//   if (file.mimetype.startsWith("image")) {
+//     cb(null, true);
+//   } else {
+//     cb(new ApiError("Not an image! Please upload only images.", 400), false);
+//   }
+// };
+// const multerFilter = (req, file, cb) => {
+//   console.log(`Processing file: ${file.fieldname} - ${file.originalname}`); // Debug log
+//   if (file.mimetype.startsWith("image")) {
+//     cb(null, true);
+//   } else {
+//     cb(new ApiError("Not an image! Please upload only images.", 400), false);
+//   }
+// };
+// const multerFilter = (req, file, cb) => {
+//   console.log(`Processing file: ${file.fieldname} - ${file.originalname}`);
+
+//   // Allow ONLY images for the 'images' field
+//   if (file.fieldname === "images" && !file.mimetype.startsWith("image")) {
+//     return cb(
+//       new ApiError("Only images are allowed for the 'images' field.", 400),
+//       false
+//     );
+//   }
+
+//   // Allow ONLY Excel files for the 'sheet' field
+//   if (file.fieldname === "sheet" && !file.mimetype.includes("spreadsheet")) {
+//     return cb(
+//       new ApiError("Only Excel files are allowed for the 'sheet' field.", 400),
+//       false
+//     );
+//   }
+
+//   // If checks pass, accept the file
+//   cb(null, true);
+// };
 // const DoctorPhotosModel = require("../models/doctorPhotosModel");
 // const asyncHandler = require("express-async-handler");
 // const ApiError = require("../utils/ApiError");

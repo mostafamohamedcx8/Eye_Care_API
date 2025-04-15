@@ -34,7 +34,7 @@ if (process.env.NODE_ENV == "development") {
 app.use("/api/v1/examination", eyeexaminationroute);
 app.use("/api/v1/user", Userroute);
 app.use("/api/v1/auth", authroute);
-app.use("/api/v1/doctorUpload", doctorUpload);
+app.use("/api/v1/doctor", doctorUpload);
 
 // app.all("*", (req, res, next) => {
 //   next(new ApiError(`can't find thos route: ${req.originalUrl}`, 400));

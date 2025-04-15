@@ -10,13 +10,18 @@ const {
   uploadDoctorPhotosValidator,
 } = require("../utils/validation/doctorPhotosValidator");
 
-// Route to upload doctor photos
+router.use(authService.protect);
 router.post(
   "/upload",
+  (req, res, next) => {
+    console.log("Raw headers:", req.headers);
+    console.log("Raw body:", req.body);
+    next();
+  },
   authService.allowedTo("admin"),
-  uploadDoctorPhotosValidator,
   uploadDoctorPhotos,
   resizeImages,
+  uploadDoctorPhotosValidator,
   createExamination
 );
 
