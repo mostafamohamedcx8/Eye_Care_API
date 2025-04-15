@@ -1,4 +1,4 @@
-const resultModel = require("../models/results");
+const resultModel = require("../models/ResultsModel");
 const path = require("path");
 const EyeExaminationModel = require("../models/EyeExaminationmodel.js");
 const getPredictionFromModel = require("./data_science_handle");
