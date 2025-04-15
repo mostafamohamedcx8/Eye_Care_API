@@ -31,6 +31,6 @@ ExaminationSchema.post("save", (doc) => {
 });
 
 // create model
-const ExaminationModel = mongoose.model(" examination", ExaminationSchema);
+const ExaminationModel = mongoose.model("examination", ExaminationSchema);
 
 module.exports = ExaminationModel;

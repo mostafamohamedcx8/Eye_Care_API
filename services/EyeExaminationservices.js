@@ -26,12 +26,13 @@ exports.UploadSingalImage = upload.single("image");
 // ==========================
 exports.resizeimage = asyncHandler(async (req, res, next) => {
   const filename = `examination-${uuidv4()}-${Date.now()}.jpeg`;
+  // console.log("filename" + filename);
   if (req.file) {
     await sharp(req.file.buffer)
       .jpeg({ quality: 99 })
       .toFile(`uploads/${filename}`);
 
-    req.body.image = filename;
+    req.body.image = `${filename}`;
   }
   next();
 });
@@ -39,16 +40,21 @@ exports.resizeimage = asyncHandler(async (req, res, next) => {
 // ==========================
 // 🔹 Create Examination
 // ==========================
-exports.createExamination = asyncHandler(async (req, res) => {
+exports.createExamination = asyncHandler(async (req, res, next) => {
+  console.log(req.body.image);
   const EyeExamination = await EyeExaminationModel.create({
     ...req.body,
     user: req.user._id, // هنا بنسجل الـ user اللي عمل الفحص
   });
-
+  req.params.examId = EyeExamination._id;
+  console.log(req.params.examId);
+  // console.log("req.params" + req.params);
+  // console.log("req.params" + req.user);
   res.status(201).json({
     message: "Image examination created successfully",
     data: EyeExamination,
   });
+  // next();
 });
 
 // ==========================
