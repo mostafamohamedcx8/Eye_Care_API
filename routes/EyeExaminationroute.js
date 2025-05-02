@@ -10,6 +10,7 @@ const {
   UploadSingalImage,
   resizeimage,
 } = require("../services/EyeExaminationservices");
+const { ceateExaminationResults } = require("../services/results");
 
 const {
   createExamnationValidator,
@@ -42,9 +43,16 @@ router
     UploadSingalImage,
     resizeimage,
     createExamnationValidator,
+<<<<<<< HEAD
     createExamination
   );
 //   .get(authService.allowedTo("admin"), getExaminations);
+=======
+    createExamination,
+    ceateExaminationResults
+  )
+  .get(authService.allowedTo("admin"), getExaminations);
+>>>>>>> f5a6b9ffd2c4461a60ce751933a07ebbc840d78d
 router
   .route("/:id")
   .get(authService.allowedTo("admin"), getExaminationValidator, getExamination)

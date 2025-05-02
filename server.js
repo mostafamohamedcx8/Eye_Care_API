@@ -9,9 +9,13 @@ const ApiError = require("./utils/ApiError");
 const eyeexaminationroute = require("./routes/EyeExaminationroute");
 const Userroute = require("./routes/UserRoute");
 const authroute = require("./routes/AuthRoute");
+<<<<<<< HEAD
 const patientroute = require("./routes/patientRoute");
 const reportroute = require("./routes/reportRoute");
 const cors = require("cors");
+=======
+const doctorUpload = require("./routes/doctorPhotosRoutes");
+>>>>>>> f5a6b9ffd2c4461a60ce751933a07ebbc840d78d
 
 // connection with db
 dbconnection();
@@ -38,8 +42,12 @@ if (process.env.NODE_ENV == "development") {
 app.use("/api/v1/examination", eyeexaminationroute);
 app.use("/api/v1/user", Userroute);
 app.use("/api/v1/auth", authroute);
+<<<<<<< HEAD
 app.use("/api/v1/patient", patientroute);
 app.use("/api/v1/report", reportroute);
+=======
+app.use("/api/v1/doctor", doctorUpload);
+>>>>>>> f5a6b9ffd2c4461a60ce751933a07ebbc840d78d
 
 // app.all("*", (req, res, next) => {
 //   next(new ApiError(`can't find thos route: ${req.originalUrl}`, 400));
