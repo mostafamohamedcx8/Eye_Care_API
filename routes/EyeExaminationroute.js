@@ -20,6 +20,8 @@ const {
 const authService = require("../services/authService");
 
 const router = express.Router();
+// Test
+router.route("/").get(getExaminations);
 
 // ===========================
 // 🔹 Logged-in User Routes
@@ -41,8 +43,8 @@ router
     resizeimage,
     createExamnationValidator,
     createExamination
-  )
-  .get(authService.allowedTo("admin"), getExaminations);
+  );
+//   .get(authService.allowedTo("admin"), getExaminations);
 router
   .route("/:id")
   .get(authService.allowedTo("admin"), getExaminationValidator, getExamination)

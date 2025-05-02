@@ -19,24 +19,51 @@ const userSchema = new mongoose.Schema(
       required: [true, "email is required"],
       unique: true,
     },
-    age: Number,
+    dateOfBirth: {
+      day: {
+        type: Number,
+        required: true,
+      },
+      month: {
+        type: String,
+        required: true,
+      },
+      year: {
+        type: Number,
+        required: true,
+      },
+    },
     gender: { type: String, enum: ["male", "female", "other"] },
     password: {
       type: String,
       required: [true, "password is required"],
       minLength: [6, "password TOO short"],
     },
+    emailVerificationCode: String,
+    emailVerificationExpires: Date,
+    emailVerified: Boolean,
     passwordchangedAt: Date,
     passwordResetCode: String,
     passwordResetExpires: Date,
     passwordResetVerified: Boolean,
-
     imageProfile: String,
-    active: { type: Boolean, default: true },
+    active: { type: Boolean, default: false },
     role: {
       type: String,
       enum: ["doctor", "optician", "admin"],
       default: "optician",
+    },
+    state: {
+      type: String,
+      required: true,
+    },
+    city: {
+      type: String,
+      required: true,
+    },
+    fullAddress: {
+      type: String,
+      required: true,
     },
   },
   { timestamps: true }

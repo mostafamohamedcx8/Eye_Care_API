@@ -2,6 +2,7 @@ const { check, body } = require("express-validator");
 const User = require("../../models/UserModel");
 const validatorMiddleware = require("../../middleware/validatorMiddleware");
 const bcrypt = require("bcrypt");
+const { State, City } = require("country-state-city");
 
 exports.getUserValidator = [
   check("id").isMongoId().withMessage("Invalid User ID format"),
@@ -21,6 +22,36 @@ exports.createUserValidator = [
     .isLength({ min: 2 })
     .withMessage("Last name must be at least 2 characters"),
 
+  body("dateOfBirth.day")
+    .isInt({ min: 1, max: 31 })
+    .withMessage("Day must be between 1 and 31"),
+
+  body("dateOfBirth.month")
+    .isString()
+    .notEmpty()
+    .withMessage("Month is required")
+    .isIn([
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ])
+    .withMessage(
+      "Month must be a valid month name (e.g., January, February, etc.)"
+    ),
+
+  body("dateOfBirth.year")
+    .isInt({ min: 1900, max: new Date().getFullYear() })
+    .withMessage(`Year must be between 1900 and ${new Date().getFullYear()}`),
+
   check("email")
     .notEmpty()
     .withMessage("Email is required")
@@ -34,11 +65,44 @@ exports.createUserValidator = [
       })
     ),
 
-  check("age")
+  body("state")
+    .isString()
     .notEmpty()
-    .withMessage("Age is required")
-    .isInt({ min: 0, max: 120 })
-    .withMessage("Age must be between 0 and 120"),
+    .withMessage("State is required")
+    .custom((state) => {
+      const states = State.getStatesOfCountry("DE"); // DE = Germany
+      const matchedState = states.find((s) => s.name === state);
+      if (!matchedState) {
+        throw new Error("Invalid state: not found in Germany");
+      }
+      return true;
+    }),
+
+  // ✅ التحقق من المدينة تبع الولاية
+  body("city")
+    .isString()
+    .notEmpty()
+    .withMessage("City is required")
+    .custom((city, { req }) => {
+      const states = State.getStatesOfCountry("DE");
+      const matchedState = states.find((s) => s.name === req.body.state);
+      if (!matchedState) {
+        throw new Error("State must be valid before validating city");
+      }
+
+      const cities = City.getCitiesOfState("DE", matchedState.isoCode);
+      const matchedCity = cities.find((c) => c.name === city);
+      if (!matchedCity) {
+        throw new Error("City is not valid for the selected state");
+      }
+
+      return true;
+    }),
+
+  body("fullAddress")
+    .isString()
+    .notEmpty()
+    .withMessage("Full Address is required"),
 
   check("gender")
     .optional()

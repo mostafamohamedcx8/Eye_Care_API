@@ -10,7 +10,7 @@ const ExaminationSchema = new mongoose.Schema(
     symptoms: [String],
     otherDiseases: [String],
   },
-  { timestamp: true }
+  { timestamps: true }
 );
 
 const setImageURL = (doc) => {
