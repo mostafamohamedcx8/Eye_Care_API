@@ -1,59 +1,53 @@
 const express = require("express");
-const router = express.Router();
+
 const {
-  uploadMultipleImages,
-  resizeImages,
   createPatient,
   getPatients,
-  deletePatient,
   getPatient,
+  deletePatient,
   getMyPatients,
   getMyPatient,
+  updateMypatient,
   deleteMyPatient,
-  updatePatient,
-} = require("../services/patientService");
+} = require("../services/patientService"); // Adjust path to your patientService
+
+const authService = require("../services/authService"); // Adjust path to your authService
 
 const {
   createPatientValidator,
   getPatientValidator,
-  getMyPatientValidator,
   deletePatientValidator,
-  deleteMyPatientValidator,
   updatePatientValidator,
-} = require("../utils/validation/patientValidation");
-const { protect, allowedTo } = require("../services/authService"); // Assuming you have auth middleware
+  getMyPatientValidator,
+  deleteMyPatientValidator,
+} = require("../utils/validation/PatientValidation"); // Adjust path to your PatientValidation
 
-// Routes
+const router = express.Router();
+
+// Routes accessible to authenticated users (opticians)
+router.use(authService.protect);
+
+router.get("/mypatients", getMyPatients); // Get all patients for the logged-in optician
+router.get("/myPatient/:id", getMyPatientValidator, getMyPatient);
+router.put("/myPatient/:id", updatePatientValidator, updateMypatient); // Get a specific patient for the logged-in optician
+router.delete(
+  "/deleteMyPatient/:id",
+  deleteMyPatientValidator,
+  deleteMyPatient
+); // Delete a specific patient for the logged-in optician
+
+// Routes restricted to opticians
+router.use(authService.allowedTo("admin"));
+
 router
   .route("/")
-  .post(
-    protect,
-    allowedTo("admin", "doctor", "optician"),
-    uploadMultipleImages,
-    createPatientValidator,
-    resizeImages,
-    createPatient
-  )
-  .get(protect, allowedTo("admin"), getPatients);
-
-router.route("/my").get(protect, getMyPatients);
-
-router
-  .route("/my/:id")
-  .get(protect, getMyPatientValidator, getMyPatient)
-  .delete(protect, deleteMyPatientValidator, deleteMyPatient);
+  .post(createPatientValidator, createPatient) // Create a new patient
+  .get(getPatients); // Get all patients
 
 router
   .route("/:id")
-  .get(protect, allowedTo("admin"), getPatientValidator, getPatient)
-  .put(
-    protect,
-    allowedTo("admin", "doctor"),
-    uploadMultipleImages,
-    updatePatientValidator,
-    resizeImages,
-    updatePatient
-  )
-  .delete(protect, allowedTo("admin"), deletePatientValidator, deletePatient);
+  .get(getPatientValidator, getPatient) // Get a specific patient by ID
+  .delete(deletePatientValidator, deletePatient); // Delete a specific patient by ID
+// Update a specific patient by ID
 
 module.exports = router;
