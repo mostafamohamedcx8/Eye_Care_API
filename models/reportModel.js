@@ -82,12 +82,7 @@ const reportOfPatientSchema = new mongoose.Schema({
       amslerTestAbnormal: {
         type: Boolean,
       },
-      images: [
-        {
-          type: String,
-          trim: true,
-        },
-      ],
+      images: [String],
     },
     leftEye: {
       visusCC: {
@@ -121,12 +116,7 @@ const reportOfPatientSchema = new mongoose.Schema({
       amslerTestAbnormal: {
         type: Boolean,
       },
-      images: [
-        {
-          type: String,
-          trim: true,
-        },
-      ],
+      images: [String],
     },
   },
   modelResults: {

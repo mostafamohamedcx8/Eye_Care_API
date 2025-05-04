@@ -1,85 +1,52 @@
 const express = require("express");
 const router = express.Router();
+
 const {
-  createReport,
-  getReports,
-  getReport,
   deleteReport,
-  getMyReports,
+  getReport,
+  getReports,
+  createReport,
   getMyReport,
+  getMyReports,
   deleteMyReport,
-  updateReport,
-  uploadReportImages,
-} = require("../services/reportService"); // Adjust path to your controller
-const authService = require("../services/authService"); // Adjust path
+  UploadImages,
+  resizeimage,
+} = require("../services/reportService");
+const authService = require("../services/authService");
 const {
   createReportOfPatientValidator,
   getReportOfPatientValidator,
   getMyReportOfPatientValidator,
   deleteReportOfPatientValidator,
   deleteMyReportOfPatientValidator,
-  updateReportOfPatientValidator,
 } = require("../utils/validation/reportValidation"); // Validators
 
-// Logging middleware for debugging
-const logRequest = (req, res, next) => {
-  console.log("Raw headers:", req.headers);
-  console.log("Raw body:", req.body);
-  next();
-};
-
-// Protect all routes
 router.use(authService.protect);
 
-// Admin routes (restricted to admin)
-router.route("/").get(authService.allowedTo("admin"), getReports);
-
-router
-  .route("/:id")
-  .get(authService.allowedTo("admin"), getReportOfPatientValidator, getReport)
-  .delete(
-    authService.allowedTo("admin"),
-    deleteReportOfPatientValidator,
-    deleteReport
-  );
-
-// Optician routes (restricted to optician)
-router
-  .route("/my-reports")
-  .get(authService.allowedTo("optician"), getMyReports);
-
-router
-  .route("/my-reports/:id")
-  .get(
-    authService.allowedTo("optician"),
-    getMyReportOfPatientValidator,
-    getMyReport
-  )
-  .delete(
-    authService.allowedTo("optician"),
-    deleteMyReportOfPatientValidator,
-    deleteMyReport
-  );
-
-// Report creation and update (restricted to optician, with image upload and validation)
 router
   .route("/")
   .post(
-    authService.allowedTo("optician"),
-    logRequest,
-    uploadReportImages,
+    UploadImages,
+    resizeimage,
     createReportOfPatientValidator,
     createReport
   );
 
+router.route("/myreport").get(getMyReports);
+router
+  .route("/myreport/:id")
+  .get(getMyReportOfPatientValidator, getMyReport) // Get a specific patient by ID
+  .delete(deleteMyReportOfPatientValidator, deleteMyReport);
+
+router.use(authService.allowedTo("admin"));
+
+router
+  .route("/")
+  .post(UploadImages, resizeimage, createReportOfPatientValidator, createReport)
+  .get(getReports);
+
 router
   .route("/:id")
-  .put(
-    authService.allowedTo("optician"),
-    logRequest,
-    uploadReportImages,
-    updateReportOfPatientValidator,
-    updateReport
-  );
-
+  .get(getReportOfPatientValidator, getReport) // Get a specific patient by ID
+  .delete(deleteReportOfPatientValidator, deleteReport);
 module.exports = router;
