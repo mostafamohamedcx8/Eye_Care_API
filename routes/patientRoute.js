@@ -26,7 +26,7 @@ const router = express.Router();
 
 // Routes accessible to authenticated users (opticians)
 router.use(authService.protect);
-
+router.route("/").post(createPatientValidator, createPatient);
 router.get("/mypatients", getMyPatients); // Get all patients for the logged-in optician
 router.get("/myPatient/:id", getMyPatientValidator, getMyPatient);
 router.put("/myPatient/:id", updatePatientValidator, updateMypatient); // Get a specific patient for the logged-in optician
@@ -41,7 +41,7 @@ router.use(authService.allowedTo("admin"));
 
 router
   .route("/")
-  .post(createPatientValidator, createPatient) // Create a new patient
+  // Create a new patient
   .get(getPatients); // Get all patients
 
 router
