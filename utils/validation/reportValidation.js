@@ -1,95 +1,163 @@
-const { check } = require("express-validator");
+const { check, body } = require("express-validator");
 const validatorMiddleware = require("../../middleware/validatorMiddleware");
-const User = require("../../models/UserModel");
+const Patient = require("../../models/patientModel"); // Adjust path to your Patient model
+const User = require("../../models/UserModel"); // Adjust path to your User model
 
-exports.createReportValidator = [
-  check("userId")
+// ==========================
+// 🔹 Validation Rules
+// ==========================
+
+exports.createReportOfPatientValidator = [
+  // Patient validation
+  check("patient")
     .notEmpty()
-    .withMessage("User ID is required")
+    .withMessage("Patient ID is required")
     .isMongoId()
-    .withMessage("Invalid User ID format")
-    .custom(async (val) => {
-      const user = await User.findById(val);
-      if (!user) {
-        return Promise.reject(new Error("User not found"));
+    .withMessage("Patient must be a valid MongoDB ObjectId")
+    .custom(async (patientId) => {
+      const patient = await Patient.findById(patientId);
+      if (!patient) {
+        throw new Error("Patient not found");
       }
       return true;
     }),
 
-  check("patientInfo.name")
+  // Optician validation
+  check("optician")
     .notEmpty()
-    .withMessage("Patient name is required")
-    .isLength({ min: 2 })
-    .withMessage("Patient name must be at least 2 characters"),
+    .withMessage("Optician ID is required")
+    .isMongoId()
+    .withMessage("Optician must be a valid MongoDB ObjectId")
+    .custom(async (opticianId) => {
+      const user = await User.findById(opticianId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      if (user.role !== "optician") {
+        throw new Error(
+          "The referenced user must be an optician, not a doctor or admin"
+        );
+      }
+      return true;
+    }),
 
-  check("patientInfo.id")
-    .notEmpty()
-    .withMessage("Patient ID is required")
-    .isLength({ min: 1 })
-    .withMessage("Patient ID cannot be empty"),
-
-  check("patientInfo.gender")
-    .notEmpty()
-    .withMessage("Gender is required")
-    .isIn(["Male", "Female", "Other"])
-    .withMessage("Gender must be Male, Female, or Other"),
-
-  check("patientInfo.ethnicity")
-    .optional()
-    .isString()
-    .withMessage("Ethnicity must be a string"),
-
-  check("patientInfo.dateOfBirth")
-    .notEmpty()
-    .withMessage("Date of birth is required")
-    .matches(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/)
-    .withMessage("Date of birth must be in mm/dd/yyyy format"),
-
-  check("patientInfo.dateOfExamination")
-    .notEmpty()
-    .withMessage("Date of examination is required")
-    .matches(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/)
-    .withMessage("Date of examination must be in mm/dd/yyyy format"),
-
+  // History - Medical validation
   check("history.medical")
     .optional()
     .isArray()
-    .withMessage("Medical history must be an array")
-    .custom((value) => {
-      if (value) {
-        value.forEach((item) => {
-          if (!item.name) {
-            throw new Error("Medical history item must have a name");
-          }
-          if (
-            item.appliesTo &&
-            !["Self", "In Family", null].includes(item.appliesTo)
-          ) {
-            throw new Error(
-              "Medical history appliesTo must be Self, In Family, or null"
-            );
-          }
-        });
-      }
-      return true;
-    }),
+    .withMessage("Medical history must be an array"),
+  check("history.medical.*.name")
+    .if(check("history.medical").exists())
+    .notEmpty()
+    .withMessage("Medical condition name is required")
+    .isString()
+    .withMessage("Medical condition name must be a string")
+    .isIn([
+      "Diabetes M.",
+      "Hypertension",
+      "Rheumatic diseases",
+      "Thyroid",
+      "Tumours",
+      "Genetic",
+    ])
+    .withMessage("Invalid medical condition name"),
+  check("history.medical.*.hasCondition")
+    .if(check("history.medical").exists())
+    .notEmpty()
+    .withMessage("Has condition is required for medical history")
+    .isBoolean()
+    .withMessage("Has condition must be a boolean"),
+  check("history.medical.*.appliesTo")
+    .if(check("history.medical").exists())
+    .optional()
+    .isIn(["Self", "In Family", null])
+    .withMessage("Applies to must be Self, In Family, or null"),
 
+  // History - Eye validation
   check("history.eye")
     .optional()
     .isArray()
-    .withMessage("Eye history must be an array")
-    .custom((value) => {
-      if (value) {
-        value.forEach((item) => {
-          if (!item.name) {
-            throw new Error("Eye history item must have a name");
-          }
-          if (
-            item.appliesTo &&
-            !["Self", "In Family", null].includes(item.appliesTo)
-          ) {
+    .withMessage("Eye history must be an array"),
+  check("history.eye.*.name")
+    .if(check("history.eye").exists())
+    .notEmpty()
+    .withMessage("Eye condition name is required")
+    .isString()
+    .withMessage("Eye condition name must be a string")
+    .isIn(["Cataract", "Glaucoma", "Age-related macular degeneration"])
+    .withMessage("Invalid eye condition name"),
+  check("history.eye.*.hasCondition")
+    .if(check("history.eye").exists())
+    .notEmpty()
+    .withMessage("Has condition is required for eye history")
+    .isBoolean()
+    .withMessage("Has condition must be a boolean"),
+  check("history.eye.*.appliesTo")
+    .if(check("history.eye").exists())
+    .optional()
+    .isIn(["Self", "In Family", null])
+    .withMessage("Applies to must be Self, In Family, or null"),
+
+  // Eye Examination - Right Eye validation
+  check("eyeExamination.rightEye.visusCC")
+    .notEmpty()
+    .withMessage("Right eye Visus CC is required")
+    .isString()
+    .withMessage("Right eye Visus CC must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.previousValue")
+    .optional()
+    .isString()
+    .withMessage("Right eye previous value must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.since")
+    .optional()
+    .isISO8601()
+    .withMessage("Right eye since must be a valid date"),
+  check("eyeExamination.rightEye.sphere")
+    .optional()
+    .isString()
+    .withMessage("Right eye sphere must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.cylinder")
+    .optional()
+    .isString()
+    .withMessage("Right eye cylinder must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.axis")
+    .optional()
+    .isString()
+    .withMessage("Right eye axis must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.intraocularPressure")
+    .optional()
+    .isString()
+    .withMessage("Right eye intraocular pressure must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.cornealThickness")
+    .optional()
+    .isString()
+    .withMessage("Right eye corneal thickness must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.chamberAngle")
+    .optional()
+    .isString()
+    .withMessage("Right eye chamber angle must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.amslerTestAbnormal")
+    .optional()
+    .isBoolean()
+    .withMessage("Right eye Amsler test abnormal must be a boolean"),
+  check("eyeExamination.rightEye.images")
+    .optional()
+    .isArray()
+    .withMessage("Right eye images must be an array")
+    .custom((images) => {
+      if (images && images.length > 0) {
+        images.forEach((img) => {
+          if (typeof img !== "string" || !img.trim()) {
             throw new Error(
-              "Eye history appliesTo must be Self, In Family, or null"
+              "Each right eye image URL must be a non-empty string"
             );
           }
         });
@@ -97,148 +165,279 @@ exports.createReportValidator = [
       return true;
     }),
 
-  check("eyeExamination.rightEye")
-    .optional()
-    .custom((value) => {
-      if (value) {
-        if (
-          value.since &&
-          !/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/.test(
-            value.since
-          )
-        ) {
-          throw new Error("Right eye since date must be in mm/dd/yyyy format");
-        }
-        if (
-          value.amslerTestAbnormal !== undefined &&
-          typeof value.amslerTestAbnormal !== "boolean"
-        ) {
-          throw new Error("Right eye Amsler test must be a boolean");
-        }
-        if (value.images && !Array.isArray(value.images)) {
-          throw new Error("Right eye images must be an array");
-        }
-      }
-      return true;
-    }),
-
-  check("eyeExamination.leftEye")
-    .optional()
-    .custom((value) => {
-      if (value) {
-        if (
-          value.since &&
-          !/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/.test(
-            value.since
-          )
-        ) {
-          throw new Error("Left eye since date must be in mm/dd/yyyy format");
-        }
-        if (
-          value.amslerTestAbnormal !== undefined &&
-          typeof value.amslerTestAbnormal !== "boolean"
-        ) {
-          throw new Error("Left eye Amsler test must be a boolean");
-        }
-        if (value.images && !Array.isArray(value.images)) {
-          throw new Error("Left eye images must be an array");
-        }
-      }
-      return true;
-    }),
-
-  check("prediction")
+  // Eye Examination - Left Eye validation
+  check("eyeExamination.leftEye.visusCC")
+    .notEmpty()
+    .withMessage("Left eye Visus CC is required")
+    .isString()
+    .withMessage("Left eye Visus CC must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.previousValue")
     .optional()
     .isString()
-    .withMessage("Prediction must be a string"),
+    .withMessage("Left eye previous value must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.since")
+    .optional()
+    .isISO8601()
+    .withMessage("Left eye since must be a valid date"),
+  check("eyeExamination.leftEye.sphere")
+    .optional()
+    .isString()
+    .withMessage("Left eye sphere must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.cylinder")
+    .optional()
+    .isString()
+    .withMessage("Left eye cylinder must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.axis")
+    .optional()
+    .isString()
+    .withMessage("Left eye axis must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.intraocularPressure")
+    .optional()
+    .isString()
+    .withMessage("Left eye intraocular pressure must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.cornealThickness")
+    .optional()
+    .isString()
+    .withMessage("Left eye corneal thickness must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.chamberAngle")
+    .optional()
+    .isString()
+    .withMessage("Left eye chamber angle must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.amslerTestAbnormal")
+    .optional()
+    .isBoolean()
+    .withMessage("Left eye Amsler test abnormal must be a boolean"),
+  check("eyeExamination.leftEye.images")
+    .optional()
+    .isArray()
+    .withMessage("Left eye images must be an array")
+    .custom((images) => {
+      if (images && images.length > 0) {
+        images.forEach((img) => {
+          if (typeof img !== "string" || !img.trim()) {
+            throw new Error(
+              "Each left eye image URL must be a non-empty string"
+            );
+          }
+        });
+      }
+      return true;
+    }),
+
+  // Model Results validation
+  check("modelResults.disease1.name")
+    .notEmpty()
+    .withMessage("Disease 1 name is required")
+    .isString()
+    .withMessage("Disease 1 name must be a string")
+    .trim(),
+  check("modelResults.disease1.percentage")
+    .notEmpty()
+    .withMessage("Disease 1 percentage is required")
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Disease 1 percentage must be between 0 and 100"),
+  check("modelResults.disease2.name")
+    .notEmpty()
+    .withMessage("Disease 2 name is required")
+    .isString()
+    .withMessage("Disease 2 name must be a string")
+    .trim(),
+  check("modelResults.disease2.percentage")
+    .notEmpty()
+    .withMessage("Disease 2 percentage is required")
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Disease 2 percentage must be between 0 and 100"),
+  check("modelResults.disease3.name")
+    .notEmpty()
+    .withMessage("Disease 3 name is required")
+    .isString()
+    .withMessage("Disease 3 name must be a string")
+    .trim(),
+  check("modelResults.disease3.percentage")
+    .notEmpty()
+    .withMessage("Disease 3 percentage is required")
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Disease 3 percentage must be between 0 and 100"),
 
   validatorMiddleware,
 ];
 
-exports.updateReportValidator = [
-  check("userId")
+exports.getReportOfPatientValidator = [
+  check("id").isMongoId().withMessage("Invalid Report Of Patient ID format"),
+  validatorMiddleware,
+];
+
+exports.getMyReportOfPatientValidator = [
+  check("id").isMongoId().withMessage("Invalid Report Of Patient ID format"),
+  validatorMiddleware,
+];
+
+exports.deleteReportOfPatientValidator = [
+  check("id").isMongoId().withMessage("Invalid Report Of Patient ID format"),
+  validatorMiddleware,
+];
+
+exports.deleteMyReportOfPatientValidator = [
+  check("id").isMongoId().withMessage("Invalid Report Of Patient ID format"),
+  validatorMiddleware,
+];
+
+exports.updateReportOfPatientValidator = [
+  // Patient validation (optional for update)
+  check("patient")
     .optional()
     .isMongoId()
-    .withMessage("Invalid User ID format")
-    .custom(async (val) => {
-      if (val) {
-        const user = await User.findById(val);
-        if (!user) {
-          return Promise.reject(new Error("User not found"));
+    .withMessage("Patient must be a valid MongoDB ObjectId")
+    .custom(async (patientId) => {
+      if (patientId) {
+        const patient = await Patient.findById(patientId);
+        if (!patient) {
+          throw new Error("Patient not found");
         }
       }
       return true;
     }),
 
-  check("patientInfo.name")
+  // Optician validation (optional for update)
+  check("optician")
     .optional()
-    .isLength({ min: 2 })
-    .withMessage("Patient name must be at least 2 characters"),
+    .isMongoId()
+    .withMessage("Optician must be a valid MongoDB ObjectId")
+    .custom(async (opticianId) => {
+      if (opticianId) {
+        const user = await User.findById(opticianId);
+        if (!user) {
+          throw new Error("User not found");
+        }
+        if (user.role !== "optician") {
+          throw new Error(
+            "The referenced user must be an optician, not a doctor or admin"
+          );
+        }
+      }
+      return true;
+    }),
 
-  check("patientInfo.id")
-    .optional()
-    .isLength({ min: 1 })
-    .withMessage("Patient ID cannot be empty"),
-
-  check("patientInfo.gender")
-    .optional()
-    .isIn(["Male", "Female", "Other"])
-    .withMessage("Gender must be Male, Female, or Other"),
-
-  check("patientInfo.ethnicity")
-    .optional()
-    .isString()
-    .withMessage("Ethnicity must be a string"),
-
-  check("patientInfo.dateOfBirth")
-    .optional()
-    .matches(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/)
-    .withMessage("Date of birth must be in mm/dd/yyyy format"),
-
-  check("patientInfo.dateOfExamination")
-    .optional()
-    .matches(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/)
-    .withMessage("Date of examination must be in mm/dd/yyyy format"),
-
+  // History - Medical validation (optional for update)
   check("history.medical")
     .optional()
     .isArray()
-    .withMessage("Medical history must be an array")
-    .custom((value) => {
-      if (value) {
-        value.forEach((item) => {
-          if (!item.name) {
-            throw new Error("Medical history item must have a name");
-          }
-          if (
-            item.appliesTo &&
-            !["Self", "In Family", null].includes(item.appliesTo)
-          ) {
-            throw new Error(
-              "Medical history appliesTo must be Self, In Family, or null"
-            );
-          }
-        });
-      }
-      return true;
-    }),
+    .withMessage("Medical history must be an array"),
+  check("history.medical.*.name")
+    .if(check("history.medical").exists())
+    .optional()
+    .isString()
+    .withMessage("Medical condition name must be a string")
+    .isIn([
+      "Diabetes M.",
+      "Hypertension",
+      "Rheumatic diseases",
+      "Thyroid",
+      "Tumours",
+      "Genetic",
+    ])
+    .withMessage("Invalid medical condition name"),
+  check("history.medical.*.hasCondition")
+    .if(check("history.medical").exists())
+    .optional()
+    .isBoolean()
+    .withMessage("Has condition must be a boolean"),
+  check("history.medical.*.appliesTo")
+    .if(check("history.medical").exists())
+    .optional()
+    .isIn(["Self", "In Family", null])
+    .withMessage("Applies to must be Self, In Family, or null"),
 
+  // History - Eye validation (optional for update)
   check("history.eye")
     .optional()
     .isArray()
-    .withMessage("Eye history must be an array")
-    .custom((value) => {
-      if (value) {
-        value.forEach((item) => {
-          if (!item.name) {
-            throw new Error("Eye history item must have a name");
-          }
-          if (
-            item.appliesTo &&
-            !["Self", "In Family", null].includes(item.appliesTo)
-          ) {
+    .withMessage("Eye history must be an array"),
+  check("history.eye.*.name")
+    .if(check("history.eye").exists())
+    .optional()
+    .isString()
+    .withMessage("Eye condition name must be a string")
+    .isIn(["Cataract", "Glaucoma", "Age-related macular degeneration"])
+    .withMessage("Invalid eye condition name"),
+  check("history.eye.*.hasCondition")
+    .if(check("history.eye").exists())
+    .optional()
+    .isBoolean()
+    .withMessage("Has condition must be a boolean"),
+  check("history.eye.*.appliesTo")
+    .if(check("history.eye").exists())
+    .optional()
+    .isIn(["Self", "In Family", null])
+    .withMessage("Applies to must be Self, In Family, or null"),
+
+  // Eye Examination - Right Eye validation (optional for update)
+  check("eyeExamination.rightEye.visusCC")
+    .optional()
+    .isString()
+    .withMessage("Right eye Visus CC must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.previousValue")
+    .optional()
+    .isString()
+    .withMessage("Right eye previous value must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.since")
+    .optional()
+    .isISO8601()
+    .withMessage("Right eye since must be a valid date"),
+  check("eyeExamination.rightEye.sphere")
+    .optional()
+    .isString()
+    .withMessage("Right eye sphere must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.cylinder")
+    .optional()
+    .isString()
+    .withMessage("Right eye cylinder must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.axis")
+    .optional()
+    .isString()
+    .withMessage("Right eye axis must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.intraocularPressure")
+    .optional()
+    .isString()
+    .withMessage("Right eye intraocular pressure must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.cornealThickness")
+    .optional()
+    .isString()
+    .withMessage("Right eye corneal thickness must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.chamberAngle")
+    .optional()
+    .isString()
+    .withMessage("Right eye chamber angle must be a string")
+    .trim(),
+  check("eyeExamination.rightEye.amslerTestAbnormal")
+    .optional()
+    .isBoolean()
+    .withMessage("Right eye Amsler test abnormal must be a boolean"),
+  check("eyeExamination.rightEye.images")
+    .optional()
+    .isArray()
+    .withMessage("Right eye images must be an array")
+    .custom((images) => {
+      if (images && images.length > 0) {
+        images.forEach((img) => {
+          if (typeof img !== "string" || !img.trim()) {
             throw new Error(
-              "Eye history appliesTo must be Self, In Family, or null"
+              "Each right eye image URL must be a non-empty string"
             );
           }
         });
@@ -246,60 +445,100 @@ exports.updateReportValidator = [
       return true;
     }),
 
-  check("eyeExamination.rightEye")
-    .optional()
-    .custom((value) => {
-      if (value) {
-        if (
-          value.since &&
-          !/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/.test(
-            value.since
-          )
-        ) {
-          throw new Error("Right eye since date must be in mm/dd/yyyy format");
-        }
-        if (
-          value.amslerTestAbnormal !== undefined &&
-          typeof value.amslerTestAbnormal !== "boolean"
-        ) {
-          throw new Error("Right eye Amsler test must be a boolean");
-        }
-        if (value.images && !Array.isArray(value.images)) {
-          throw new Error("Right eye images must be an array");
-        }
-      }
-      return true;
-    }),
-
-  check("eyeExamination.leftEye")
-    .optional()
-    .custom((value) => {
-      if (value) {
-        if (
-          value.since &&
-          !/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/.test(
-            value.since
-          )
-        ) {
-          throw new Error("Left eye since date must be in mm/dd/yyyy format");
-        }
-        if (
-          value.amslerTestAbnormal !== undefined &&
-          typeof value.amslerTestAbnormal !== "boolean"
-        ) {
-          throw new Error("Left eye Amsler test must be a boolean");
-        }
-        if (value.images && !Array.isArray(value.images)) {
-          throw new Error("Left eye images must be an array");
-        }
-      }
-      return true;
-    }),
-
-  check("prediction")
+  // Eye Examination - Left Eye validation (optional for update)
+  check("eyeExamination.leftEye.visusCC")
     .optional()
     .isString()
-    .withMessage("Prediction must be a string"),
+    .withMessage("Left eye Visus CC must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.previousValue")
+    .optional()
+    .isString()
+    .withMessage("Left eye previous value must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.since")
+    .optional()
+    .isISO8601()
+    .withMessage("Left eye since must be a valid date"),
+  check("eyeExamination.leftEye.sphere")
+    .optional()
+    .isString()
+    .withMessage("Left eye sphere must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.cylinder")
+    .optional()
+    .isString()
+    .withMessage("Left eye cylinder must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.axis")
+    .optional()
+    .isString()
+    .withMessage("Left eye axis must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.intraocularPressure")
+    .optional()
+    .isString()
+    .withMessage("Left eye intraocular pressure must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.cornealThickness")
+    .optional()
+    .isString()
+    .withMessage("Left eye corneal thickness must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.chamberAngle")
+    .optional()
+    .isString()
+    .withMessage("Left eye chamber angle must be a string")
+    .trim(),
+  check("eyeExamination.leftEye.amslerTestAbnormal")
+    .optional()
+    .isBoolean()
+    .withMessage("Left eye Amsler test abnormal must be a boolean"),
+  check("eyeExamination.leftEye.images")
+    .optional()
+    .isArray()
+    .withMessage("Left eye images must be an array")
+    .custom((images) => {
+      if (images && images.length > 0) {
+        images.forEach((img) => {
+          if (typeof img !== "string" || !img.trim()) {
+            throw new Error(
+              "Each left eye image URL must be a non-empty string"
+            );
+          }
+        });
+      }
+      return true;
+    }),
+
+  // Model Results validation (optional for update)
+  check("modelResults.disease1.name")
+    .optional()
+    .isString()
+    .withMessage("Disease 1 name must be a string")
+    .trim(),
+  check("modelResults.disease1.percentage")
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Disease 1 percentage must be between 0 and 100"),
+  check("modelResults.disease2.name")
+    .optional()
+    .isString()
+    .withMessage("Disease 2 name must be a string")
+    .trim(),
+  check("modelResults.disease2.percentage")
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Disease 2 percentage must be between 0 and 100"),
+  check("modelResults.disease3.name")
+    .optional()
+    .isString()
+    .withMessage("Disease 3 name must be a string")
+    .trim(),
+  check("modelResults.disease3.percentage")
+    .optional()
+    .isInt({ min: 0, max: 100 })
+    .withMessage("Disease 3 percentage must be between 0 and 100"),
 
   validatorMiddleware,
 ];

@@ -3,94 +3,22 @@ const Patient = require("../models/patientModel"); // Adjust the path to your Pa
 const asyncHandler = require("express-async-handler");
 const ApiError = require("../utils/ApiError");
 const ApiFeatures = require("../utils/apiFeatures");
-const multer = require("multer");
-const sharp = require("sharp");
-const { v4: uuidv4 } = require("uuid");
-
-// ==========================
-// 🔹 Multer Config
-// ==========================
-const multerStorage = multer.memoryStorage();
-const multerFilter = function (req, file, cb) {
-  if (file.mimetype.startsWith("image")) {
-    cb(null, true);
-  } else {
-    cb(new ApiError("Not an image! Please upload only images.", 400), false);
-  }
-};
-
-// Configure multer to accept multiple files for rightEye and leftEye
-const upload = multer({
-  storage: multerStorage,
-  fileFilter: multerFilter,
-});
-exports.uploadMultipleImages = upload.fields([
-  { name: "rightEyeImages", maxCount: 10 }, // Max 10 images per eye
-  { name: "leftEyeImages", maxCount: 10 },
-]);
-
-// ==========================
-// 🔹 Image Resize Middleware
-// ==========================
-exports.resizeImages = asyncHandler(async (req, res, next) => {
-  if (req.files) {
-    // Process right eye images
-    if (req.files.rightEyeImages) {
-      const rightEyeImageFilenames = [];
-      for (let file of req.files.rightEyeImages) {
-        const filename = `patient-right-${uuidv4()}-${Date.now()}.jpeg`;
-        await sharp(file.buffer)
-          .jpeg({ quality: 99 })
-          .toFile(`uploads/${filename}`);
-        rightEyeImageFilenames.push(filename);
-      }
-      // Add filenames to rightEye.images array
-      if (!req.body.eyeExamination) {
-        req.body.eyeExamination = { rightEye: {}, leftEye: {} };
-      }
-      if (!req.body.eyeExamination.rightEye.images) {
-        req.body.eyeExamination.rightEye.images = [];
-      }
-      req.body.eyeExamination.rightEye.images = [
-        ...req.body.eyeExamination.rightEye.images,
-        ...rightEyeImageFilenames,
-      ];
-    }
-
-    // Process left eye images
-    if (req.files.leftEyeImages) {
-      const leftEyeImageFilenames = [];
-      for (let file of req.files.leftEyeImages) {
-        const filename = `patient-left-${uuidv4()}-${Date.now()}.jpeg`;
-        await sharp(file.buffer)
-          .jpeg({ quality: 99 })
-          .toFile(`uploads/${filename}`);
-        leftEyeImageFilenames.push(filename);
-      }
-      // Add filenames to leftEye.images array
-      if (!req.body.eyeExamination) {
-        req.body.eyeExamination = { rightEye: {}, leftEye: {} };
-      }
-      if (!req.body.eyeExamination.leftEye.images) {
-        req.body.eyeExamination.leftEye.images = [];
-      }
-      req.body.eyeExamination.leftEye.images = [
-        ...req.body.eyeExamination.leftEye.images,
-        ...leftEyeImageFilenames,
-      ];
-    }
-  }
-  next();
-});
 
 // ==========================
 // 🔹 Create Patient
 // ==========================
-exports.createPatient = asyncHandler(async (req, res) => {
-  const patient = await Patient.create({
+exports.createPatient = asyncHandler(async (req, res, next) => {
+  // Check if the logged-in user is an optician
+  if (req.user.role !== "optician") {
+    return next(new ApiError("Only opticians can create patients", 403));
+  }
+
+  const patientData = {
     ...req.body,
-    user: req.user._id, // Record the user who created the patient
-  });
+    optician: req.user._id, // Set the optician to the logged-in user
+  };
+
+  const patient = await Patient.create(patientData);
 
   res.status(201).json({
     message: "Patient created successfully",
@@ -107,7 +35,7 @@ exports.getPatients = asyncHandler(async (req, res) => {
     .filter()
     .paginate(countDocuments)
     .sort()
-    .limitFields()
+    .Limitfields()
     .search();
   const { paginationResults, mongooseQuery } = apiFeatures;
   const patients = await mongooseQuery;
@@ -130,8 +58,7 @@ exports.deletePatient = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`No patient for this id ${id}`, 404));
   }
 
-  await patient.deleteOne();
-  res.status(204).send();
+  res.status(204).send(); // Removed redundant deleteOne
 });
 
 // ==========================
@@ -152,17 +79,17 @@ exports.getPatient = asyncHandler(async (req, res, next) => {
 // ==========================
 exports.getMyPatients = asyncHandler(async (req, res) => {
   const countDocuments = await Patient.countDocuments({
-    user: req.user._id,
+    optician: req.user._id, // Changed from user to optician to match schema
   });
 
   const apiFeatures = new ApiFeatures(
-    Patient.find({ user: req.user._id }),
+    Patient.find({ optician: req.user._id }), // Changed from user to optician
     req.query
   )
     .filter()
     .paginate(countDocuments)
     .sort()
-    .limitFields()
+    .Limitfields()
     .search();
 
   const { paginationResults, mongooseQuery } = apiFeatures;
@@ -183,52 +110,69 @@ exports.getMyPatient = asyncHandler(async (req, res, next) => {
 
   const patient = await Patient.findOne({
     _id: id,
-    user: req.user._id,
+    optician: req.user._id, // Changed from user to optician
   });
 
   if (!patient) {
     return next(
-      new ApiError("No patient found with this ID for the logged-in user", 404)
+      new ApiError(
+        "No patient found with this ID for the logged-in optician",
+        404
+      )
     );
   }
 
   res.status(200).json({ data: patient });
 });
 
-// ==========================
-// 🔹 Delete Patient for Logged-in User
-// ==========================
 exports.deleteMyPatient = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const patient = await Patient.findOneAndDelete({
+  const patient = await Patient.findByIdAndDelete({
     _id: id,
-    user: req.user._id,
+    optician: req.user._id,
   });
 
   if (!patient) {
     return next(new ApiError(`No patient for this id ${id}`, 404));
   }
 
+  // Trigger "remove" event when update document
   await patient.deleteOne();
   res.status(204).send();
 });
 
-// ==========================
-// 🔹 Update Patient
-// ==========================
-exports.updatePatient = asyncHandler(async (req, res, next) => {
+exports.updateMypatient = asyncHandler(async (req, res, next) => {
+  // Check if the logged-in user is an optician
+  if (req.user.role !== "optician") {
+    return next(new ApiError("Only opticians can update patients", 403));
+  }
+
   const { id } = req.params;
-  const patient = await Patient.findByIdAndUpdate(id, req.body, {
-    new: true,
-    runValidators: true,
+
+  // Find the patient by ID and ensure it belongs to the logged-in optician
+  const patient = await Patient.findOne({
+    _id: id,
+    optician: req.user._id,
   });
 
   if (!patient) {
-    return next(new ApiError(`No patient for this id ${id}`, 404));
+    return next(
+      new ApiError(
+        "No patient found with this ID for the logged-in optician",
+        404
+      )
+    );
   }
+
+  // Update patient with new data
+  const updatedPatient = await Patient.findByIdAndUpdate(
+    id,
+    { $set: req.body },
+    { new: true, runValidators: true }
+  );
 
   res.status(200).json({
     message: "Patient updated successfully",
-    data: patient,
+    data: updatedPatient,
   });
 });

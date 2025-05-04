@@ -1,133 +1,181 @@
 const mongoose = require("mongoose");
-const Schema = mongoose.Schema;
 
-// Define the Eye Examination sub-schema (for Right and Left Eye)
-const EyeExaminationSchema = new Schema({
-  visusCC: {
-    type: String,
-    default: null,
+const reportOfPatientSchema = new mongoose.Schema({
+  patient: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Patient",
+    required: true,
   },
-  previousValue: {
-    type: String,
-    default: null,
+  optician: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
   },
-  since: {
-    type: String,
-    default: null,
+  history: {
+    medical: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        hasCondition: {
+          type: Boolean,
+          required: true,
+        },
+        appliesTo: {
+          type: String,
+          enum: ["Self", "In Family", null],
+          default: null,
+        },
+      },
+    ],
+    eye: [
+      {
+        name: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        hasCondition: {
+          type: Boolean,
+          required: true,
+        },
+        appliesTo: {
+          type: String,
+          enum: ["Self", "In Family", null],
+          default: null,
+        },
+      },
+    ],
   },
-  sphere: {
-    type: String,
-    default: null,
+  eyeExamination: {
+    rightEye: {
+      visusCC: {
+        type: String,
+        required: true,
+      },
+      previousValue: {
+        type: String,
+      },
+      since: {
+        type: Date,
+      },
+      sphere: {
+        type: String,
+      },
+      cylinder: {
+        type: String,
+      },
+      axis: {
+        type: String,
+      },
+      intraocularPressure: {
+        type: String,
+      },
+      cornealThickness: {
+        type: String,
+      },
+      chamberAngle: {
+        type: String,
+      },
+      amslerTestAbnormal: {
+        type: Boolean,
+      },
+      images: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+    },
+    leftEye: {
+      visusCC: {
+        type: String,
+        required: true,
+      },
+      previousValue: {
+        type: String,
+      },
+      since: {
+        type: Date,
+      },
+      sphere: {
+        type: String,
+      },
+      cylinder: {
+        type: String,
+      },
+      axis: {
+        type: String,
+      },
+      intraocularPressure: {
+        type: String,
+      },
+      cornealThickness: {
+        type: String,
+      },
+      chamberAngle: {
+        type: String,
+      },
+      amslerTestAbnormal: {
+        type: Boolean,
+      },
+      images: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+    },
   },
-  cylinder: {
-    type: String,
-    default: null,
+  modelResults: {
+    disease1: {
+      name: {
+        type: String,
+        required: true,
+      },
+      percentage: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+      },
+    },
+    disease2: {
+      name: {
+        type: String,
+        required: true,
+      },
+      percentage: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+      },
+    },
+    disease3: {
+      name: {
+        type: String,
+        required: true,
+      },
+      percentage: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 100,
+      },
+    },
   },
-  axis: {
-    type: String,
-    default: null,
-  },
-  intraocularPressure: {
-    type: String,
-    default: null,
-  },
-  cornealThickness: {
-    type: String,
-    default: null,
-  },
-  chamberAngle: {
-    type: String,
-    default: null,
-  },
-  amslerTestAbnormal: {
-    type: Boolean,
-    default: false,
-  },
-  images: {
-    type: [String],
-    default: [],
+  createdAt: {
+    type: Date,
+    default: Date.now,
   },
 });
 
-// Define the History sub-schema for Medical History and Eye Diseases
-const HistorySchema = new Schema({
-  medical: [
-    {
-      name: {
-        type: String,
-        required: true,
-      },
-      appliesTo: {
-        type: String,
-        enum: ["Self", "In Family", null],
-        default: null,
-      },
-    },
-  ],
-  eye: [
-    {
-      name: {
-        type: String,
-        required: true,
-      },
-      appliesTo: {
-        type: String,
-        enum: ["Self", "In Family", null],
-        default: null,
-      },
-    },
-  ],
-});
-
-// Define the main Report schema
-const ReportSchema = new Schema(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
-    patientInfo: {
-      name: {
-        type: String,
-        required: true,
-      },
-      id: {
-        type: String,
-        required: true,
-      },
-      gender: {
-        type: String,
-        enum: ["Male", "Female", "Other"],
-        required: true,
-      },
-      ethnicity: {
-        type: String,
-        default: null,
-      },
-      dateOfBirth: {
-        type: String,
-        required: true,
-      },
-      dateOfExamination: {
-        type: String,
-        required: true,
-      },
-    },
-    history: HistorySchema,
-    eyeExamination: {
-      rightEye: EyeExaminationSchema,
-      leftEye: EyeExaminationSchema,
-    },
-    prediction: {
-      type: String,
-      default: null,
-    },
-  },
-  { timestamps: true }
+const ReportOfPatient = mongoose.model(
+  "ReportOfPatient",
+  reportOfPatientSchema
 );
 
-// Create the model
-const Report = mongoose.model("Report", ReportSchema);
-
-module.exports = Report;
+module.exports = ReportOfPatient;
