@@ -23,21 +23,24 @@ const {
 
 router.use(authService.protect);
 
+router.route("/myreport").get(getMyReports);
+router
+  .route("/myreport/:id")
+  .get(getMyReportOfPatientValidator, getMyReport) // Get a specific patient by ID
+  .delete(
+    authService.allowedTo("optician"),
+    deleteMyReportOfPatientValidator,
+    deleteMyReport
+  );
 router
   .route("/")
   .post(
+    authService.allowedTo("optician"),
     UploadImages,
     resizeimage,
     createReportOfPatientValidator,
     createReport
   );
-
-router.route("/myreport").get(getMyReports);
-router
-  .route("/myreport/:id")
-  .get(getMyReportOfPatientValidator, getMyReport) // Get a specific patient by ID
-  .delete(deleteMyReportOfPatientValidator, deleteMyReport);
-
 router.use(authService.allowedTo("admin"));
 
 router

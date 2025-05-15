@@ -1,6 +1,13 @@
 const mongoose = require("mongoose");
 
 const patientSchema = new mongoose.Schema({
+  report: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ReportOfPatient",
+      required: true,
+    },
+  ],
   name: {
     type: String,
     required: true,
@@ -24,6 +31,12 @@ const patientSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  doctors: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
 });
 
 const Patient = mongoose.model("Patient", patientSchema);

@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+const patient = require("./patientModel");
 
 const userSchema = new mongoose.Schema(
   {
@@ -33,21 +34,22 @@ const userSchema = new mongoose.Schema(
         required: true,
       },
     },
+    Specialty: { type: String },
     gender: { type: String, enum: ["male", "female", "other"] },
     password: {
       type: String,
       required: [true, "password is required"],
       minLength: [6, "password TOO short"],
     },
-    emailVerificationCode: String,
+    imageProfile: String,
+    emailVerificationToken: String,
     emailVerificationExpires: Date,
     emailVerified: Boolean,
     passwordchangedAt: Date,
     passwordResetCode: String,
     passwordResetExpires: Date,
     passwordResetVerified: Boolean,
-    imageProfile: String,
-    active: { type: Boolean, default: false },
+    active: { type: Boolean, default: true },
     role: {
       type: String,
       enum: ["doctor", "optician", "admin"],
@@ -74,6 +76,23 @@ userSchema.pre("save", async function (next) {
   // Hashing user password
   this.password = await bcrypt.hash(this.password, 12);
   next();
+});
+
+const setImageURL = (doc) => {
+  if (doc.imageProfile) {
+    const imageUrl = `${process.env.BASE_URL}/profile/${doc.imageProfile}`;
+    doc.imageProfile = imageUrl;
+  }
+};
+
+// findOne, findAll, Update
+userSchema.post("init", (doc) => {
+  setImageURL(doc);
+});
+
+// create
+userSchema.post("save", (doc) => {
+  setImageURL(doc);
 });
 
 module.exports = mongoose.model("User", userSchema);

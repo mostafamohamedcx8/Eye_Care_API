@@ -37,23 +37,23 @@ exports.createPatientValidator = [
     .withMessage("Date of Birth must be a valid date in yyyy-mm-dd format"),
 
   // Optician validation
-  check("optician")
-    .notEmpty()
-    .withMessage("Optician is required")
-    .isMongoId()
-    .withMessage("Optician must be a valid MongoDB ObjectId")
-    .custom(async (opticianId) => {
-      const user = await User.findById(opticianId);
-      if (!user) {
-        throw new Error("User not found");
-      }
-      if (user.role !== "optician") {
-        throw new Error(
-          "The referenced user must be an optician, not a doctor or admin"
-        );
-      }
-      return true;
-    }),
+  // check("optician")
+  //   .notEmpty()
+  //   .withMessage("Optician is required")
+  //   .isMongoId()
+  //   .withMessage("Optician must be a valid MongoDB ObjectId")
+  //   .custom(async (opticianId) => {
+  //     const user = await User.findById(opticianId);
+  //     if (!user) {
+  //       throw new Error("User not found");
+  //     }
+  //     if (user.role !== "optician") {
+  //       throw new Error(
+  //         "The referenced user must be an optician, not a doctor or admin"
+  //       );
+  //     }
+  //     return true;
+  //   }),
 
   validatorMiddleware,
 ];

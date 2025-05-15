@@ -13,6 +13,8 @@ const {
   UpdateLoggedUserData,
   UpdateUserLoggedPassword,
   deletUserLoggedData,
+  getDoctors,
+  getDoctorById,
 } = require("../services/userService");
 const authService = require("../services/authService");
 
@@ -28,9 +30,19 @@ const {
 const router = express.Router();
 
 router.use(authService.protect);
+router.route("/doctor").get(authService.allowedTo("optician"), getDoctors);
+router
+  .route("/doctor/:id")
+  .get(authService.allowedTo("optician"), getDoctorById);
 router.get("/getMe", getLoggedUserData, getUser);
 router.put("/changemypassword", UpdateUserLoggedPassword);
-router.put("/updatemydata", updateUserLoggedValidator, UpdateLoggedUserData);
+router.put(
+  "/updatemydata",
+  UploadSingalImage,
+  resizeimage,
+  updateUserLoggedValidator,
+  UpdateLoggedUserData
+);
 router.delete("/deletme", deletUserLoggedData);
 
 router.use(authService.allowedTo("admin"));

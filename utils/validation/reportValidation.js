@@ -10,33 +10,12 @@ const User = require("../../models/UserModel"); // Adjust path to your User mode
 exports.createReportOfPatientValidator = [
   // Patient validation
   check("patient")
-    .notEmpty()
-    .withMessage("Patient ID is required")
     .isMongoId()
     .withMessage("Patient must be a valid MongoDB ObjectId")
     .custom(async (patientId) => {
       const patient = await Patient.findById(patientId);
       if (!patient) {
         throw new Error("Patient not found");
-      }
-      return true;
-    }),
-
-  // Optician validation
-  check("optician")
-    .notEmpty()
-    .withMessage("Optician ID is required")
-    .isMongoId()
-    .withMessage("Optician must be a valid MongoDB ObjectId")
-    .custom(async (opticianId) => {
-      const user = await User.findById(opticianId);
-      if (!user) {
-        throw new Error("User not found");
-      }
-      if (user.role !== "optician") {
-        throw new Error(
-          "The referenced user must be an optician, not a doctor or admin"
-        );
       }
       return true;
     }),
@@ -51,16 +30,8 @@ exports.createReportOfPatientValidator = [
     .notEmpty()
     .withMessage("Medical condition name is required")
     .isString()
-    .withMessage("Medical condition name must be a string")
-    .isIn([
-      "Diabetes M.",
-      "Hypertension",
-      "Rheumatic diseases",
-      "Thyroid",
-      "Tumours",
-      "Genetic",
-    ])
-    .withMessage("Invalid medical condition name"),
+    .withMessage("Medical condition name must be a string"),
+
   check("history.medical.*.hasCondition")
     .if(check("history.medical").exists())
     .notEmpty()
@@ -70,8 +41,8 @@ exports.createReportOfPatientValidator = [
   check("history.medical.*.appliesTo")
     .if(check("history.medical").exists())
     .optional()
-    .isIn(["Self", "In Family", null])
-    .withMessage("Applies to must be Self, In Family, or null"),
+    .isIn(["Self", "In Family"])
+    .withMessage("Applies to must be Self, In Family"),
 
   // History - Eye validation
   check("history.eye")
@@ -83,9 +54,7 @@ exports.createReportOfPatientValidator = [
     .notEmpty()
     .withMessage("Eye condition name is required")
     .isString()
-    .withMessage("Eye condition name must be a string")
-    .isIn(["Cataract", "Glaucoma", "Age-related macular degeneration"])
-    .withMessage("Invalid eye condition name"),
+    .withMessage("Eye condition name must be a string"),
   check("history.eye.*.hasCondition")
     .if(check("history.eye").exists())
     .notEmpty()
@@ -95,8 +64,8 @@ exports.createReportOfPatientValidator = [
   check("history.eye.*.appliesTo")
     .if(check("history.eye").exists())
     .optional()
-    .isIn(["Self", "In Family", null])
-    .withMessage("Applies to must be Self, In Family, or null"),
+    .isIn(["Self", "In Family"])
+    .withMessage("Applies to must be Self, In Family"),
 
   // Eye Examination - Right Eye validation
   check("eyeExamination.rightEye.visusCC")
@@ -148,22 +117,6 @@ exports.createReportOfPatientValidator = [
     .optional()
     .isBoolean()
     .withMessage("Right eye Amsler test abnormal must be a boolean"),
-  check("eyeExamination.rightEye.images")
-    .optional()
-    .isArray()
-    .withMessage("Right eye images must be an array")
-    .custom((images) => {
-      if (images && images.length > 0) {
-        images.forEach((img) => {
-          if (typeof img !== "string" || !img.trim()) {
-            throw new Error(
-              "Each right eye image URL must be a non-empty string"
-            );
-          }
-        });
-      }
-      return true;
-    }),
 
   // Eye Examination - Left Eye validation
   check("eyeExamination.leftEye.visusCC")
@@ -215,23 +168,8 @@ exports.createReportOfPatientValidator = [
     .optional()
     .isBoolean()
     .withMessage("Left eye Amsler test abnormal must be a boolean"),
-  check("eyeExamination.leftEye.images")
-    .optional()
-    .isArray()
-    .withMessage("Left eye images must be an array")
-    .custom((images) => {
-      if (images && images.length > 0) {
-        images.forEach((img) => {
-          if (typeof img !== "string" || !img.trim()) {
-            throw new Error(
-              "Each left eye image URL must be a non-empty string"
-            );
-          }
-        });
-      }
-      return true;
-    }),
 
+  ,
   // Model Results validation
   check("modelResults.disease1.name")
     .notEmpty()

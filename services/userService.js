@@ -5,7 +5,6 @@ const ApiFeatures = require("../utils/apiFeatures");
 const multer = require("multer");
 const bcrypt = require("bcryptjs");
 const createToken = require("../utils/CreateToken");
-
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
 
@@ -36,8 +35,8 @@ exports.resizeimage = asyncHandler(async (req, res, next) => {
 });
 
 exports.createUser = asyncHandler(async (req, res) => {
-  const User = await User.create(req.body);
-  res.status(201).json({ data: User });
+  const user = await User.create(req.body);
+  res.status(201).json({ data: user });
 });
 
 exports.getUsers = asyncHandler(async (req, res) => {
@@ -141,6 +140,7 @@ exports.getLoggedUserData = asyncHandler(async (req, res, next) => {
 // @desc    Update logged user password
 // @route   PUT /api/v1/users/updateMyPassword
 // @access  Private/Protect
+
 exports.UpdateUserLoggedPassword = asyncHandler(async (req, res, next) => {
   // 1)update user password based on user payload(req.user._id)
   const user = await User.findByIdAndUpdate(
@@ -158,7 +158,6 @@ exports.UpdateUserLoggedPassword = asyncHandler(async (req, res, next) => {
   // 2) return updated user
   res.status(200).json({ data: user, token });
 });
-
 // @desc    Update logged user data (without password, role)
 // @route   PUT /api/v1/users/updateMe
 // @access  Private/Protect
@@ -169,9 +168,11 @@ exports.UpdateLoggedUserData = asyncHandler(async (req, res, next) => {
       firstname: req.body.firstname,
       lastname: req.body.lastname,
       email: req.body.email,
-      age: req.body.age,
-      gender: req.body.gender,
+      dateOfBirth: req.body.dateOfBirth,
       imageProfile: req.body.imageProfile,
+      state: req.body.state,
+      city: req.body.city,
+      fullAddress: req.body.fullAddress,
     },
     { new: true }
   );
@@ -184,4 +185,38 @@ exports.UpdateLoggedUserData = asyncHandler(async (req, res, next) => {
 exports.deletUserLoggedData = asyncHandler(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user._id, { active: false });
   res.status(204).send();
+});
+
+exports.getDoctors = asyncHandler(async (req, res) => {
+  // Get count of all doctors
+  const countDocuments = await User.countDocuments({ role: "doctor" });
+
+  // Apply filters, search, pagination, etc., but only for doctors
+  const apifeatures = new ApiFeatures(User.find({ role: "doctor" }), req.query)
+    .filter()
+    .paginate(countDocuments)
+    .sort()
+    .Limitfields()
+    .search();
+
+  const { paginationresults, mongooseQuery } = apifeatures;
+  const doctors = await mongooseQuery;
+
+  res.status(200).json({
+    results: doctors.length,
+    paginationresults,
+    data: doctors,
+  });
+});
+
+exports.getDoctorById = asyncHandler(async (req, res, next) => {
+  const doctor = await User.findOne({ _id: req.params.id, role: "doctor" });
+
+  if (!doctor) {
+    return res.status(404).json({ message: "Doctor not found" });
+  }
+
+  res.status(200).json({
+    data: doctor,
+  });
 });

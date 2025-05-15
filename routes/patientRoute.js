@@ -7,9 +7,11 @@ const {
   deletePatient,
   getMyPatients,
   getMyPatient,
+  getMyPatientWithReports,
   updateMypatient,
+  sendPatientToDoctor,
   deleteMyPatient,
-} = require("../services/patientService"); // Adjust path to your patientService
+} = require("../services/patientService");
 
 const authService = require("../services/authService"); // Adjust path to your authService
 
@@ -20,29 +22,45 @@ const {
   updatePatientValidator,
   getMyPatientValidator,
   deleteMyPatientValidator,
-} = require("../utils/validation/PatientValidation"); // Adjust path to your PatientValidation
+} = require("../utils/validation/PatientValidation");
+// Adjust path to your PatientValidation
 
 const router = express.Router();
 
 // Routes accessible to authenticated users (opticians)
 router.use(authService.protect);
-router.route("/").post(createPatientValidator, createPatient);
-router.get("/mypatients", getMyPatients); // Get all patients for the logged-in optician
-router.get("/myPatient/:id", getMyPatientValidator, getMyPatient);
-router.put("/myPatient/:id", updatePatientValidator, updateMypatient); // Get a specific patient for the logged-in optician
-router.delete(
-  "/deleteMyPatient/:id",
-  deleteMyPatientValidator,
-  deleteMyPatient
-); // Delete a specific patient for the logged-in optician
-
-// Routes restricted to opticians
-router.use(authService.allowedTo("admin"));
 
 router
   .route("/")
-  // Create a new patient
-  .get(getPatients); // Get all patients
+  .post(
+    authService.allowedTo("optician"),
+    createPatientValidator,
+    createPatient
+  );
+router
+  .route("/send")
+  .post(authService.allowedTo("optician"), sendPatientToDoctor);
+
+router.route("/mypatients").get(getMyPatients); // Get all patients for the logged-in optician
+router.route("/myPatient/:id").get(getMyPatientValidator, getMyPatient);
+router.get(
+  "/myPatientwithreport/:id",
+  getMyPatientValidator,
+  getMyPatientWithReports
+);
+// router.put("/myPatient/:id", updatePatientValidator, updateMypatient); // Get a specific patient for the logged-in optician
+router
+  .route("/deleteMyPatient/:id")
+  .delete(
+    authService.allowedTo("optician"),
+    deleteMyPatientValidator,
+    deleteMyPatient
+  ); // Delete a specific patient for the logged-in optician
+
+// Routes restricted to opticians
+router.use(authService.allowedTo("admin"));
+router.route("/").get(getPatients);
+// Get all patients
 
 router
   .route("/:id")

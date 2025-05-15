@@ -103,6 +103,12 @@ exports.createUserValidator = [
     .isString()
     .notEmpty()
     .withMessage("Full Address is required"),
+  check("Specialty").custom((value, { req }) => {
+    if (req.body.role === "doctor" && (!value || value.trim() === "")) {
+      throw new Error("Specialty is required for doctors");
+    }
+    return true;
+  }),
 
   check("gender")
     .optional()
@@ -170,6 +176,12 @@ exports.UpdateUserValidator = [
     .isIn(["doctor", "optician", "admin"])
     .withMessage("Invalid role value"),
 
+  check("Specialty").custom((value, { req }) => {
+    if (req.body.role === "doctor" && (!value || value.trim() === "")) {
+      throw new Error("Specialty is required for doctors");
+    }
+    return true;
+  }),
   validatorMiddleware,
 ];
 
@@ -213,33 +225,46 @@ exports.changeUserpasswordValidator = [
 ];
 
 exports.updateUserLoggedValidator = [
-  check("firstname").optional(),
+  check("firstname")
+    .optional()
+    .isLength({ min: 2 })
+    .withMessage("First name must be at least 2 characters"),
 
-  check("lastname").optional(),
+  check("lastname")
+    .optional()
+    .isLength({ min: 2 })
+    .withMessage("Last name must be at least 2 characters"),
 
   check("email")
     .optional()
     .isEmail()
     .withMessage("Invalid email address")
-    .custom((val) =>
-      User.findOne({ email: val }).then((user) => {
-        if (user) {
-          return Promise.reject(new Error("Email already exists"));
-        }
-      })
-    ),
+    .custom(async (val, { req }) => {
+      const user = await User.findOne({ email: val });
+      if (user && user._id.toString() !== req.user._id.toString()) {
+        throw new Error("Email already exists");
+      }
+      return true;
+    }),
 
-  check("imageProfile").optional(),
-
-  check("age")
+  check("dateOfBirth")
     .optional()
-    .isInt({ min: 0, max: 120 })
-    .withMessage("Age must be between 0 and 120"),
+    .isISO8601()
+    .withMessage("Date of birth must be a valid date"),
 
-  check("gender")
+  check("imageProfile")
     .optional()
-    .isIn(["male", "female", "other"])
-    .withMessage("Gender must be male, female, or other"),
+    .isString()
+    .withMessage("Image profile must be a string"),
+
+  check("state").optional().isString().withMessage("State must be a string"),
+
+  check("city").optional().isString().withMessage("City must be a string"),
+
+  check("fullAddress")
+    .optional()
+    .isString()
+    .withMessage("Full address must be a string"),
 
   validatorMiddleware,
 ];

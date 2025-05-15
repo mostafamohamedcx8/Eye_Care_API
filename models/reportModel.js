@@ -25,7 +25,7 @@ const reportOfPatientSchema = new mongoose.Schema({
         },
         appliesTo: {
           type: String,
-          enum: ["Self", "In Family", null],
+          enum: ["Self", "In Family"],
           default: null,
         },
       },
@@ -43,7 +43,7 @@ const reportOfPatientSchema = new mongoose.Schema({
         },
         appliesTo: {
           type: String,
-          enum: ["Self", "In Family", null],
+          enum: ["Self", "In Family"],
           default: null,
         },
       },
@@ -163,9 +163,34 @@ const reportOfPatientSchema = new mongoose.Schema({
   },
 });
 
+const setImageURL = (doc) => {
+  if (doc.eyeExamination?.rightEye?.images) {
+    const rightImageList = doc.eyeExamination.rightEye.images.map((image) => {
+      return `${process.env.BASE_URL}/funds/${image}`;
+    });
+    doc.eyeExamination.rightEye.images = rightImageList;
+  }
+
+  if (doc.eyeExamination?.leftEye?.images) {
+    const leftImageList = doc.eyeExamination.leftEye.images.map((image) => {
+      return `${process.env.BASE_URL}/funds/${image}`;
+    });
+    doc.eyeExamination.leftEye.images = leftImageList;
+  }
+};
+
+// ✅ استخدم post على الـ schema نفسه
+reportOfPatientSchema.post("init", (doc) => {
+  setImageURL(doc);
+});
+
+reportOfPatientSchema.post("save", (doc) => {
+  setImageURL(doc);
+});
+
+// ثم أنشئ الموديل بعد ذلك
 const ReportOfPatient = mongoose.model(
   "ReportOfPatient",
   reportOfPatientSchema
 );
-
 module.exports = ReportOfPatient;

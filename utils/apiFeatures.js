@@ -19,9 +19,9 @@ class ApiFeatures {
   sort() {
     if (this.queryStr.sort) {
       const sortBy = this.queryStr.sort.split(",").join(" ");
-      this.mongooseQuery = this.mongooseQuery.sort(sortBy);
+      this.mongooseQuery = this.mongooseQuery.sort(`${sortBy} _id`); // إضافة _id
     } else {
-      this.mongooseQuery = this.mongooseQuery.sort("-createdAt");
+      this.mongooseQuery = this.mongooseQuery.sort("-createdAt _id"); // إضافة _id
     }
     return this;
   }

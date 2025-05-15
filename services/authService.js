@@ -9,8 +9,71 @@ const sendEmail = require("../utils/sendemail");
 // @desc    Signup
 // @route   GET /api/v1/auth/signup
 // @access  Public
+// exports.signup = asyncHandler(async (req, res, next) => {
+//   // 1-Create User
+//   const user = await User.create({
+//     firstname: req.body.firstname,
+//     lastname: req.body.lastname,
+//     email: req.body.email,
+//     password: req.body.password,
+//     passwordConfirm: req.body.passwordConfirm,
+//     gender: req.body.gender,
+//     dateOfBirth: req.body.dateOfBirth,
+//     state: req.body.state,
+//     city: req.body.city,
+//     fullAddress: req.body.fullAddress,
+//   });
+
+//   const token = createToken(user._id);
+
+//   // 2- Generate 6-digit email verification code
+//   const verificationLink = Math.floor(
+//     100000 + Math.random() * 900000
+//   ).toString();
+//   const hashedVerificationCode = crypto
+//     .createHash("sha256")
+//     .update(verificationCode)
+//     .digest("hex");
+
+//   // Save verification code info to DB
+//   user.emailVerificationCode = hashedVerificationCode;
+//   user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+//   user.emailVerified = false;
+
+//   await user.save();
+
+//   // 3- Send verification email
+//   const message = `Hi ${user.firstname} ${user.lastname},\n\nWelcome to Eye-Care!\n\nYour email verification code is: ${verificationCode}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
+
+//   try {
+//     await sendEmail({
+//       email: user.email,
+//       subject: "Email Verification - Eye-Care",
+//       message,
+//     });
+//   } catch (err) {
+//     user.emailVerificationCode = undefined;
+//     user.emailVerificationExpires = undefined;
+//     user.emailVerified = undefined;
+//     await user.save();
+
+//     return next(new ApiError("Failed to send verification email", 500));
+//   }
+
+//   // 4- Response
+//   res.status(201).json({
+//     status: "success",
+//     message:
+//       "Account created. Please check your email for the verification code.",
+//     data: {
+//       userId: user._id,
+//       email: user.email,
+//     },
+//   });
+// });
+
 exports.signup = asyncHandler(async (req, res, next) => {
-  // 1-Create User
+  // 1- Create User
   const user = await User.create({
     firstname: req.body.firstname,
     lastname: req.body.lastname,
@@ -24,24 +87,35 @@ exports.signup = asyncHandler(async (req, res, next) => {
     fullAddress: req.body.fullAddress,
   });
 
-  // 2- Generate 6-digit email verification code
-  const verificationCode = Math.floor(
-    100000 + Math.random() * 900000
-  ).toString();
-  const hashedVerificationCode = crypto
+  // 2- Generate token for email verification
+  const rawToken = crypto.randomBytes(32).toString("hex");
+
+  // Hash the token before saving it to the DB
+  const hashedToken = crypto
     .createHash("sha256")
-    .update(verificationCode)
+    .update(rawToken)
     .digest("hex");
 
-  // Save verification code info to DB
-  user.emailVerificationCode = hashedVerificationCode;
-  user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+  // Optional: Store token if you want to compare later or expire
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // Optional: 10 mins expiry
   user.emailVerified = false;
 
   await user.save();
 
-  // 3- Send verification email
-  const message = `Hi ${user.firstname} ${user.lastname},\n\nWelcome to Eye-Care!\n\nYour email verification code is: ${verificationCode}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
+  // 3- Send verification email with link
+  const verificationUrl = `http://localhost:3000/verify-email?token=${rawToken}`;
+  const message = `Hi ${user.firstname} ${user.lastname},
+
+Welcome to Eye-Care!
+
+Please click the link below to verify your email:
+${verificationUrl}
+
+If you did not sign up, please ignore this email.
+
+Thanks,
+Eye-Care Team`;
 
   try {
     await sendEmail({
@@ -50,7 +124,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
       message,
     });
   } catch (err) {
-    user.emailVerificationCode = undefined;
+    user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
     user.emailVerified = undefined;
     await user.save();
@@ -62,7 +136,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
   res.status(201).json({
     status: "success",
     message:
-      "Account created. Please check your email for the verification code.",
+      "Account created. Please check your email for the verification link.",
     data: {
       userId: user._id,
       email: user.email,
@@ -71,55 +145,60 @@ exports.signup = asyncHandler(async (req, res, next) => {
 });
 
 exports.verifyEmailCode = asyncHandler(async (req, res, next) => {
-  const hashedCode = crypto
+  const rawToken = req.body.token;
+
+  const hashedToken = crypto
     .createHash("sha256")
-    .update(req.body.code)
+    .update(rawToken)
     .digest("hex");
 
   let user = await User.findOne({
-    emailVerificationCode: hashedCode,
+    emailVerificationToken: hashedToken,
   });
 
   if (!user) {
-    return next(new ApiError("Invalid verification code", 400));
+    return next(new ApiError("Invalid verification LInk", 400));
   }
 
   // Check if the code is expired
   if (user.emailVerificationExpires < Date.now()) {
     // Generate a new code
-    const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const hashedNewCode = crypto
+    const newRawToken = crypto.randomBytes(32).toString("hex");
+
+    // Hash the token before saving it to the DB
+    const newHashedToken = crypto
       .createHash("sha256")
-      .update(newCode)
+      .update(newRawToken)
       .digest("hex");
 
-    user.emailVerificationCode = hashedNewCode;
+    const verificationUrl = `http://localhost:3000/verify-email?token=${newRawToken}`;
+    user.emailVerificationToken = newHashedToken;
     user.emailVerificationExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    const message = `Hi ${user.firstname} ${user.lastname},\n\nYour previous verification code has expired.\n\nHere is your new verification code: ${newCode}\n\nPlease enter this new code to verify your account.\n\nThanks,\nEye-Care Team`;
+    const message = `Hi ${user.firstname} ${user.lastname},\n\nYour previous verification link has expired.\n\nHere is your new verification code: ${verificationUrl}\n\nPlease enter this new code to verify your account.\n\nThanks,\nEye-Care Team`;
 
     try {
       await sendEmail({
         email: user.email,
-        subject: "New Email Verification Code - Eye-Care",
+        subject: "New Email Verification Link - Eye-Care",
         message,
       });
     } catch (err) {
-      return next(new ApiError("Failed to send new verification code", 500));
+      return next(new ApiError("Failed to send new verification Link", 500));
     }
 
     return res.status(400).json({
       status: "fail",
       message:
-        "This verification code has expired. We have sent a new code to your email.",
+        "This verification Link has expired. We have sent a new Link to your email.",
     });
   }
 
   // Code is valid → verify user
   user.emailVerified = true;
-  user.emailVerificationCode = undefined;
+  user.emailVerificationToken = undefined;
   user.emailVerificationExpires = undefined;
 
   await user.save();
@@ -160,22 +239,23 @@ exports.login = asyncHandler(async (req, res, next) => {
   // 2- Check if email is verified
   if (!user.emailVerified) {
     // Generate a new verification code
-    const verificationCode = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
-    const hashedVerificationCode = crypto
+    const NewrawToken = crypto.randomBytes(32).toString("hex");
+
+    // Hash the token before saving it to the DB
+    const NewhashedToken = crypto
       .createHash("sha256")
-      .update(verificationCode)
+      .update(NewrawToken)
       .digest("hex");
 
     // Update user with new verification code and expiration
-    user.emailVerificationCode = hashedVerificationCode;
+    const verificationUrl = `http://localhost:3000/verify-email?token=${NewrawToken}`;
+    user.emailVerificationToken = NewhashedToken;
     user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
 
     await user.save();
 
     // Send verification email
-    const message = `Hi ${user.firstname} ${user.lastname},\n\nYou need to verify your email to log in.\n\nHere is your verification code: ${verificationCode}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
+    const message = `Hi ${user.firstname} ${user.lastname},\n\nYou need to verify your email to log in.\n\nHere is your verification Link: ${verificationUrl}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
 
     try {
       await sendEmail({
@@ -184,17 +264,13 @@ exports.login = asyncHandler(async (req, res, next) => {
         message,
       });
     } catch (err) {
-      user.emailVerificationCode = undefined;
-      user.emailVerificationExpires = undefined;
-      await user.save();
-
       return next(new ApiError("Failed to send verification email", 500));
     }
 
     return res.status(403).json({
       status: "fail",
       message:
-        "Your email is not verified. We have sent a new verification code to your email.",
+        "Your email is not verified. We have sent a new verification Link to your email.",
     });
   }
 
@@ -208,6 +284,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     token,
   });
 });
+
 // make sure that user is loggin
 exports.protect = asyncHandler(async (req, res, next) => {
   // 1- check if token exist and if exist get
