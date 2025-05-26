@@ -7,6 +7,7 @@ const bcrypt = require("bcryptjs");
 const createToken = require("../utils/CreateToken");
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
+const Patient = require("../models/patientModel");
 
 const multerstorage = multer.memoryStorage();
 const multerFilter = function (req, file, cb) {
@@ -209,6 +210,31 @@ exports.getDoctors = asyncHandler(async (req, res) => {
   });
 });
 
+exports.getOpticians = asyncHandler(async (req, res) => {
+  // Get count of all doctors
+  const countDocuments = await User.countDocuments({ role: "optician" });
+
+  // Apply filters, search, pagination, etc., but only for doctors
+  const apifeatures = new ApiFeatures(
+    User.find({ role: "optician" }),
+    req.query
+  )
+    .filter()
+    .paginate(countDocuments)
+    .sort()
+    .Limitfields()
+    .search();
+
+  const { paginationresults, mongooseQuery } = apifeatures;
+  const opticians = await mongooseQuery;
+
+  res.status(200).json({
+    results: opticians.length,
+    paginationresults,
+    data: opticians,
+  });
+});
+
 exports.getDoctorById = asyncHandler(async (req, res, next) => {
   const doctor = await User.findOne({ _id: req.params.id, role: "doctor" });
 
@@ -218,5 +244,92 @@ exports.getDoctorById = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     data: doctor,
+  });
+});
+
+exports.deleteDoctorById = asyncHandler(async (req, res, next) => {
+  const doctorId = req.params.id;
+
+  // 1. تأكد إن الدكتور موجود
+  const doctor = await User.findOne({ _id: doctorId, role: "doctor" });
+
+  if (!doctor) {
+    return res.status(404).json({ message: "Doctor not found" });
+  }
+  // 2. امسح الدكتور من مصفوفة doctors في كل المرضى
+  await Patient.updateMany(
+    { doctors: doctorId },
+    { $pull: { doctors: doctorId } }
+  );
+  // 3. امسح الدكتور نفسه
+  await User.deleteOne({ _id: doctorId });
+
+  res.status(204).send();
+});
+
+exports.deleteOpticianById = asyncHandler(async (req, res, next) => {
+  const opticianId = req.params.id;
+
+  // 1. اتأكد إن الـ optician موجود
+  const optician = await User.findOne({ _id: opticianId, role: "optician" });
+
+  if (!optician) {
+    return res.status(404).json({ message: "Optician not found" });
+  }
+
+  // 2. امسح كل المرضى اللي اتسجلوا بواسطة الـ optician ده
+  await Patient.deleteMany({ optician: opticianId });
+
+  // 3. امسح الـ optician نفسه
+  await User.deleteOne({ _id: opticianId });
+
+  res.status(204).send();
+});
+
+exports.updateOpticianRole = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { newRole, Specialty } = req.body;
+
+  // 1. اتأكد إن الدور الجديد من القيم المسموحة
+  const allowedRoles = ["admin", "doctor"];
+  if (!allowedRoles.includes(newRole)) {
+    return res.status(400).json({
+      message: "Invalid role. Role must be either 'admin' or 'doctor'.",
+    });
+  }
+
+  // 2. هات اليوزر واتأكد إنه أوبتيشن
+  const user = await User.findById(id);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (user.role !== "optician") {
+    return res.status(400).json({
+      message:
+        "Only users with the role 'optician' can have their role updated.",
+    });
+  }
+
+  // 3. لو هيتحول لدكتور، لازم يدخل التخصص
+  if (newRole === "doctor" && (!Specialty || Specialty.trim() === "")) {
+    return res.status(400).json({
+      message: "Specialty is required when updating role to 'doctor'.",
+    });
+  }
+
+  // 4. عدل البيانات
+  user.role = newRole;
+  if (newRole === "doctor") {
+    user.Specialty = Specialty;
+  } else {
+    user.Specialty = undefined; // امسحها لو اتحول لأدمن
+  }
+
+  await user.save();
+
+  res.status(200).json({
+    message: `User role updated to '${newRole}' successfully.`,
+    data: user,
   });
 });

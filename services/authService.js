@@ -104,7 +104,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
   await user.save();
 
   // 3- Send verification email with link
-  const verificationUrl = `http://localhost:3000/verify-email?token=${rawToken}`;
+  const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${rawToken}`;
   const message = `Hi ${user.firstname} ${user.lastname},
 
 Welcome to Eye-Care!
@@ -171,7 +171,7 @@ exports.verifyEmailCode = asyncHandler(async (req, res, next) => {
       .update(newRawToken)
       .digest("hex");
 
-    const verificationUrl = `http://localhost:3000/verify-email?token=${newRawToken}`;
+    const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${newRawToken}`;
     user.emailVerificationToken = newHashedToken;
     user.emailVerificationExpires = Date.now() + 10 * 60 * 1000;
 
@@ -248,7 +248,7 @@ exports.login = asyncHandler(async (req, res, next) => {
       .digest("hex");
 
     // Update user with new verification code and expiration
-    const verificationUrl = `http://localhost:3000/verify-email?token=${NewrawToken}`;
+    const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${NewrawToken}`;
     user.emailVerificationToken = NewhashedToken;
     user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
 

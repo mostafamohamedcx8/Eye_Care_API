@@ -36,20 +36,21 @@ class ApiFeatures {
     return this;
   }
 
-  search(modelName) {
+  search() {
     if (this.queryStr.keyword) {
-      let query = {};
-      if (modelName === "products") {
-        query.$or = [
-          { title: { $regex: this.queryStr.keyword, $options: "i" } },
-          { description: { $regex: this.queryStr.keyword, $options: "i" } },
-        ];
-      } else {
-        query = { name: { $regex: this.queryStr.keyword, $options: "i" } };
-      }
+      const keyword = this.queryStr.keyword;
+      const query = {
+        $or: [
+          { name: { $regex: keyword, $options: "i" } },
+          { email: { $regex: keyword, $options: "i" } },
+          { firstname: { $regex: keyword, $options: "i" } },
+          { lastname: { $regex: keyword, $options: "i" } },
+        ],
+      };
 
       this.mongooseQuery = this.mongooseQuery.find(query);
     }
+
     return this;
   }
 

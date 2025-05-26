@@ -39,6 +39,14 @@ const patientSchema = new mongoose.Schema({
   ],
 });
 
+patientSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "optician",
+    select: "firstname  lastname  _id",
+  });
+  next();
+});
+
 const Patient = mongoose.model("Patient", patientSchema);
 
 module.exports = Patient;

@@ -15,6 +15,10 @@ const {
   deletUserLoggedData,
   getDoctors,
   getDoctorById,
+  getOpticians,
+  deleteDoctorById,
+  updateOpticianRole,
+  deleteOpticianById,
 } = require("../services/userService");
 const authService = require("../services/authService");
 
@@ -46,6 +50,8 @@ router.put(
 router.delete("/deletme", deletUserLoggedData);
 
 router.use(authService.allowedTo("admin"));
+router.route("/doctors").get(getDoctors);
+router.route("/opticians").get(getOpticians);
 router
   .route("/")
   .post(UploadSingalImage, resizeimage, createUserValidator, createUser)
@@ -55,7 +61,9 @@ router
   .get(getUserValidator, getUser)
   .delete(deleteUserValidator, deleteUser)
   .put(UpdateUserValidator, updateUser);
-
+router.route("/doctor/:id").delete(deleteDoctorById);
+router.route("/optician/:id").delete(deleteOpticianById);
+router.route("/optician/:id").put(updateOpticianRole);
 router
   .route("/changePassword/:id")
   .put(changeUserpasswordValidator, changeUserPassword);
