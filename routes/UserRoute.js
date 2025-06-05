@@ -15,10 +15,12 @@ const {
   deletUserLoggedData,
   getDoctors,
   getDoctorById,
+  getNewUsers,
   getOpticians,
   deleteDoctorById,
   updateOpticianRole,
   deleteOpticianById,
+  licenseVerified,
 } = require("../services/userService");
 const authService = require("../services/authService");
 
@@ -50,12 +52,14 @@ router.put(
 router.delete("/deletme", deletUserLoggedData);
 
 router.use(authService.allowedTo("admin"));
+router.route("/verify-license").put(licenseVerified);
 router.route("/doctors").get(getDoctors);
 router.route("/opticians").get(getOpticians);
 router
   .route("/")
   .post(UploadSingalImage, resizeimage, createUserValidator, createUser)
   .get(getUsers);
+router.route("/newuser").get(getNewUsers);
 router
   .route("/:id")
   .get(getUserValidator, getUser)

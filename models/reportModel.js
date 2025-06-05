@@ -53,7 +53,6 @@ const reportOfPatientSchema = new mongoose.Schema({
     rightEye: {
       visusCC: {
         type: String,
-        required: true,
       },
       previousValue: {
         type: String,
@@ -83,11 +82,13 @@ const reportOfPatientSchema = new mongoose.Schema({
         type: Boolean,
       },
       images: [String],
+      imageCaptureDate: {
+        type: Date,
+      },
     },
     leftEye: {
       visusCC: {
         type: String,
-        required: true,
       },
       previousValue: {
         type: String,
@@ -117,75 +118,96 @@ const reportOfPatientSchema = new mongoose.Schema({
         type: Boolean,
       },
       images: [String],
+      imageCaptureDate: {
+        type: Date,
+      },
     },
   },
   modelResults: {
-    disease1: {
-      name: {
-        type: String,
-        required: true,
-      },
-      percentage: {
-        type: Number,
-        required: true,
-        min: 0,
-        max: 100,
-      },
+    rightEye: {
+      type: String, // بنخزن JSON string
+      required: true,
     },
-    disease2: {
-      name: {
-        type: String,
-        required: true,
-      },
-      percentage: {
-        type: Number,
-        required: true,
-        min: 0,
-        max: 100,
-      },
-    },
-    disease3: {
-      name: {
-        type: String,
-        required: true,
-      },
-      percentage: {
-        type: Number,
-        required: true,
-        min: 0,
-        max: 100,
-      },
+    leftEye: {
+      type: String,
+      required: true,
     },
   },
+  doctorFeedbacks: [
+    {
+      doctor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      rightEyeFeedback: {
+        aiPredictionCorrect: {
+          type: String,
+          enum: ["correct", "incorrect", "uncertain"],
+        },
+        comment: {
+          type: String,
+          trim: true,
+        },
+      },
+      leftEyeFeedback: {
+        aiPredictionCorrect: {
+          type: String,
+          enum: ["correct", "incorrect", "uncertain"],
+        },
+        comment: {
+          type: String,
+          trim: true,
+        },
+      },
+      diagnosis: {
+        type: String,
+        trim: true,
+      },
+      recommendedAction: {
+        type: String,
+        trim: true,
+      },
+      createdAt: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
 
-const setImageURL = (doc) => {
-  if (doc.eyeExamination?.rightEye?.images) {
-    const rightImageList = doc.eyeExamination.rightEye.images.map((image) => {
-      return `${process.env.BASE_URL}/funds/${image}`;
-    });
-    doc.eyeExamination.rightEye.images = rightImageList;
-  }
+const setImageURLs = (doc) => {
+  const baseUrl = process.env.BASE_URL;
 
-  if (doc.eyeExamination?.leftEye?.images) {
-    const leftImageList = doc.eyeExamination.leftEye.images.map((image) => {
-      return `${process.env.BASE_URL}/funds/${image}`;
-    });
-    doc.eyeExamination.leftEye.images = leftImageList;
-  }
+  ["rightEye", "leftEye"].forEach((eye) => {
+    if (doc.eyeExamination?.[eye]?.images) {
+      doc.eyeExamination[eye].images = doc.eyeExamination[eye].images.map(
+        (image) => {
+          // لو الصورة بالفعل فيها URL، سيبها زي ما هي
+          if (image.startsWith("http://") || image.startsWith("https://")) {
+            return image;
+          }
+          return `${baseUrl}/funds/${image}`;
+        }
+      );
+    }
+  });
 };
 
-// ✅ استخدم post على الـ schema نفسه
-reportOfPatientSchema.post("init", (doc) => {
-  setImageURL(doc);
-});
+// findOne, findAll, Update
+reportOfPatientSchema.post("init", setImageURLs);
 
-reportOfPatientSchema.post("save", (doc) => {
-  setImageURL(doc);
+// create
+reportOfPatientSchema.post("save", setImageURLs);
+reportOfPatientSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "doctorFeedbacks.doctor",
+    select: "firstname  lastname  _id",
+  });
+  next();
 });
 
 // ثم أنشئ الموديل بعد ذلك

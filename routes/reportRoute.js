@@ -11,6 +11,7 @@ const {
   deleteMyReport,
   UploadImages,
   resizeimage,
+  createDoctorFeedback,
 } = require("../services/reportService");
 const authService = require("../services/authService");
 const {
@@ -19,6 +20,7 @@ const {
   getMyReportOfPatientValidator,
   deleteReportOfPatientValidator,
   deleteMyReportOfPatientValidator,
+  eyeExaminationValidation,
 } = require("../utils/validation/reportValidation"); // Validators
 
 router.use(authService.protect);
@@ -33,7 +35,10 @@ router
     deleteMyReport
   );
 router
-  .route("/")
+  .route("/myreport/:id")
+  .put(authService.allowedTo("doctor"), createDoctorFeedback);
+router
+  .route("/:id")
   .post(
     authService.allowedTo("optician"),
     UploadImages,

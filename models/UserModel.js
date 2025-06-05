@@ -35,7 +35,11 @@ const userSchema = new mongoose.Schema(
       },
     },
     Specialty: { type: String },
-    gender: { type: String, enum: ["male", "female", "other"] },
+    salutation: {
+      type: String,
+      enum: ["Mr", "Mrs", "Ms", "Mx"],
+      required: [true, "Salutation is required"],
+    },
     password: {
       type: String,
       required: [true, "password is required"],
@@ -45,6 +49,7 @@ const userSchema = new mongoose.Schema(
     emailVerificationToken: String,
     emailVerificationExpires: Date,
     emailVerified: Boolean,
+    licenseVerified: { type: Boolean, default: false },
     passwordchangedAt: Date,
     passwordResetCode: String,
     passwordResetExpires: Date,
@@ -53,7 +58,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["doctor", "optician", "admin"],
-      default: "optician",
+      required: true,
     },
     state: {
       type: String,
@@ -64,6 +69,16 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     fullAddress: {
+      type: String,
+      required: true,
+    },
+    postalCode: {
+      type: String,
+      required: [true, "postalCode is required"],
+      match: [/^\d{5}$/, "postalCode must be 5 digits"],
+      // التحقق من أنها 5 أرقام
+    },
+    imagemedicallicense: {
       type: String,
       required: true,
     },
@@ -78,21 +93,18 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-const setImageURL = (doc) => {
+const setImageURLs = (doc) => {
+  if (doc.imagemedicallicense) {
+    doc.Image_Medical_License = `${process.env.BASE_URL}/Image_Medical_License/${doc.Image_Medical_License}`;
+  }
   if (doc.imageProfile) {
-    const imageUrl = `${process.env.BASE_URL}/profile/${doc.imageProfile}`;
-    doc.imageProfile = imageUrl;
+    doc.imageProfile = `${process.env.BASE_URL}/profile/${doc.imageProfile}`;
   }
 };
 
 // findOne, findAll, Update
-userSchema.post("init", (doc) => {
-  setImageURL(doc);
-});
+userSchema.post("init", setImageURLs);
 
 // create
-userSchema.post("save", (doc) => {
-  setImageURL(doc);
-});
-
+userSchema.post("save", setImageURLs);
 module.exports = mongoose.model("User", userSchema);

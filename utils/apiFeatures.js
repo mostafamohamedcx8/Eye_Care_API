@@ -45,6 +45,10 @@ class ApiFeatures {
           { email: { $regex: keyword, $options: "i" } },
           { firstname: { $regex: keyword, $options: "i" } },
           { lastname: { $regex: keyword, $options: "i" } },
+          { state: { $regex: keyword, $options: "i" } },
+          { city: { $regex: keyword, $options: "i" } },
+          { Specialty: { $regex: keyword, $options: "i" } },
+          { postalCode: { $regex: keyword, $options: "i" } },
         ],
       };
 

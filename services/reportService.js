@@ -103,9 +103,11 @@ exports.createReport = asyncHandler(async (req, res) => {
       .status(403)
       .json({ message: "Only opticians can create reports" });
   }
+  const patientId = req.params.id;
 
   const reportData = {
     ...req.body,
+    patient: patientId,
     optician: req.user._id,
   };
 
@@ -124,6 +126,78 @@ exports.createReport = asyncHandler(async (req, res) => {
     .json({ message: "Report created successfully", data: report });
 });
 
+exports.createDoctorFeedback = asyncHandler(async (req, res) => {
+  // 1. تأكد إن المسجل دكتور
+  if (req.user.role !== "doctor") {
+    return res
+      .status(403)
+      .json({ message: "Only doctors can give feedback on reports" });
+  }
+
+  const { id } = req.params;
+  const doctorId = req.user._id;
+  const { rightEyeFeedback, leftEyeFeedback, diagnosis, recommendedAction } =
+    req.body;
+
+  // 2. تأكد إن التقرير موجود
+  const report = await ReportOfPatient.findById(id);
+  if (!report) {
+    return res.status(404).json({ message: "Report not found" });
+  }
+
+  // 3. التأكد إن الدكتور مرسل له المريض
+  const patient = await Patient.findById(report.patient);
+  if (!patient) {
+    return res.status(404).json({ message: "Associated patient not found" });
+  }
+
+  const isDoctorAssigned = patient.doctors.some((docId) =>
+    docId.equals(doctorId)
+  );
+
+  if (!isDoctorAssigned) {
+    return res.status(403).json({
+      message:
+        "This doctor is not authorized to give feedback on this patient's report",
+    });
+  }
+
+  // 4. إعداد الفيدباك
+  const feedback = {
+    doctor: doctorId,
+    rightEyeFeedback,
+    leftEyeFeedback,
+    diagnosis,
+    recommendedAction,
+    createdAt: new Date(),
+  };
+
+  const existingFeedbackIndex = report.doctorFeedbacks.findIndex((fb) =>
+    fb.doctor.equals(doctorId)
+  );
+
+  if (existingFeedbackIndex !== -1) {
+    // دكتور بالفعل حط فيدباك قبل كده -> نعمل update
+    report.doctorFeedbacks[existingFeedbackIndex] = {
+      ...report.doctorFeedbacks[existingFeedbackIndex]._doc,
+      rightEyeFeedback,
+      leftEyeFeedback,
+      diagnosis,
+      recommendedAction,
+      createdAt: new Date(),
+    };
+  } else {
+    // دكتور لسه ماحطش فيدباك -> نضيفه
+    report.doctorFeedbacks.push(feedback);
+  }
+
+  await report.save();
+
+  res.status(200).json({
+    message: "Feedback added successfully",
+    data: report,
+  });
+});
 exports.getReport = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const report = await ReportOfPatient.findById(id)

@@ -7,19 +7,25 @@ const User = require("../../models/UserModel"); // Adjust path to your User mode
 // ==========================
 exports.createPatientValidator = [
   // Name validation
-  check("name")
+  check("firstname")
     .notEmpty()
-    .withMessage("Name is required")
+    .withMessage("firstname is required")
     .isString()
-    .withMessage("Name must be a string")
+    .withMessage("firstname must be a string")
+    .trim(),
+  check("lastname")
+    .notEmpty()
+    .withMessage("lastname is required")
+    .isString()
+    .withMessage("lastname must be a string")
     .trim(),
 
   // Gender validation
-  check("gender")
+  check("salutation")
     .notEmpty()
-    .withMessage("Gender is required")
-    .isIn(["Male", "Female", "Other"])
-    .withMessage("Gender must be Male, Female, or Other"),
+    .withMessage("salutation is required")
+    .isIn(["Mr", "Mrs", "Ms", "Mx"])
+    .withMessage("salutation must be Mr, Mrs, Ms or Mx"),
 
   // Ethnicity validation
   check("ethnicity")

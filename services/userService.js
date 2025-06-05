@@ -8,6 +8,7 @@ const createToken = require("../utils/CreateToken");
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
 const Patient = require("../models/patientModel");
+const sendEmail = require("../utils/sendemail");
 
 const multerstorage = multer.memoryStorage();
 const multerFilter = function (req, file, cb) {
@@ -40,6 +41,47 @@ exports.createUser = asyncHandler(async (req, res) => {
   res.status(201).json({ data: user });
 });
 
+exports.licenseVerified = async (req, res) => {
+  const { userId } = req.body;
+
+  try {
+    // 1. البحث عن المستخدم
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2. تعديل حالة الرخصة
+    user.licenseVerified = true;
+    await user.save();
+
+    // 3. إرسال الإيميل
+    const message = `
+Dear ${user.firstname} ${user.lastname},
+
+We are pleased to inform you that your license has been successfully reviewed and verified by the Eye-Care team.
+
+You can now log in and start using all the features of our platform.
+
+Thanks,  
+Eye-Care Team`;
+
+    await sendEmail({
+      email: user.email,
+      subject: "License Verified - Eye-Care",
+      message,
+    });
+
+    res
+      .status(200)
+      .json({ message: "License verified and email sent successfully." });
+  } catch (error) {
+    console.error("Error verifying license:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 exports.getUsers = asyncHandler(async (req, res) => {
   // Build query
   const countDocuments = await User.countDocuments();
@@ -70,6 +112,30 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
   res.status(204).send();
 });
 
+exports.getNewUsers = asyncHandler(async (req, res) => {
+  // Build query
+  const countDocuments = await User.countDocuments({ licenseVerified: false });
+
+  const apifeatures = new ApiFeatures(
+    User.find({ licenseVerified: false }),
+    req.query
+  )
+    .filter()
+    .paginate(countDocuments)
+    .sort()
+    .Limitfields()
+    .search();
+
+  // execute query
+  const { paginationresults, mongooseQuery } = apifeatures;
+  const Documents = await mongooseQuery;
+
+  res.status(200).json({
+    results: Documents.length,
+    paginationresults,
+    data: Documents,
+  });
+});
 exports.getUser = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   let query = User.findById(id);

@@ -8,18 +8,6 @@ const User = require("../../models/UserModel"); // Adjust path to your User mode
 // ==========================
 
 exports.createReportOfPatientValidator = [
-  // Patient validation
-  check("patient")
-    .isMongoId()
-    .withMessage("Patient must be a valid MongoDB ObjectId")
-    .custom(async (patientId) => {
-      const patient = await Patient.findById(patientId);
-      if (!patient) {
-        throw new Error("Patient not found");
-      }
-      return true;
-    }),
-
   // History - Medical validation
   check("history.medical")
     .optional()
@@ -68,21 +56,20 @@ exports.createReportOfPatientValidator = [
     .withMessage("Applies to must be Self, In Family"),
 
   // Eye Examination - Right Eye validation
-  check("eyeExamination.rightEye.visusCC")
-    .notEmpty()
-    .withMessage("Right eye Visus CC is required")
-    .isString()
-    .withMessage("Right eye Visus CC must be a string")
-    .trim(),
+  check("eyeExamination.rightEye.visusCC").trim(),
   check("eyeExamination.rightEye.previousValue")
     .optional()
     .isString()
     .withMessage("Right eye previous value must be a string")
     .trim(),
   check("eyeExamination.rightEye.since")
-    .optional()
+    .optional({ checkFalsy: true })
     .isISO8601()
     .withMessage("Right eye since must be a valid date"),
+  check("eyeExamination.rightEye.imageCaptureDate")
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage("Right eye imageCaptureDate must be a valid date"),
   check("eyeExamination.rightEye.sphere")
     .optional()
     .isString()
@@ -119,21 +106,20 @@ exports.createReportOfPatientValidator = [
     .withMessage("Right eye Amsler test abnormal must be a boolean"),
 
   // Eye Examination - Left Eye validation
-  check("eyeExamination.leftEye.visusCC")
-    .notEmpty()
-    .withMessage("Left eye Visus CC is required")
-    .isString()
-    .withMessage("Left eye Visus CC must be a string")
-    .trim(),
+  check("eyeExamination.leftEye.visusCC").trim(),
   check("eyeExamination.leftEye.previousValue")
     .optional()
     .isString()
     .withMessage("Left eye previous value must be a string")
     .trim(),
   check("eyeExamination.leftEye.since")
-    .optional()
+    .optional({ checkFalsy: true })
     .isISO8601()
     .withMessage("Left eye since must be a valid date"),
+  check("eyeExamination.leftEye.imageCaptureDate")
+    .optional({ checkFalsy: true })
+    .isISO8601()
+    .withMessage("Left eye imageCaptureDate must be a valid date"),
   check("eyeExamination.leftEye.sphere")
     .optional()
     .isString()
@@ -168,43 +154,6 @@ exports.createReportOfPatientValidator = [
     .optional()
     .isBoolean()
     .withMessage("Left eye Amsler test abnormal must be a boolean"),
-
-  ,
-  // Model Results validation
-  check("modelResults.disease1.name")
-    .notEmpty()
-    .withMessage("Disease 1 name is required")
-    .isString()
-    .withMessage("Disease 1 name must be a string")
-    .trim(),
-  check("modelResults.disease1.percentage")
-    .notEmpty()
-    .withMessage("Disease 1 percentage is required")
-    .isInt({ min: 0, max: 100 })
-    .withMessage("Disease 1 percentage must be between 0 and 100"),
-  check("modelResults.disease2.name")
-    .notEmpty()
-    .withMessage("Disease 2 name is required")
-    .isString()
-    .withMessage("Disease 2 name must be a string")
-    .trim(),
-  check("modelResults.disease2.percentage")
-    .notEmpty()
-    .withMessage("Disease 2 percentage is required")
-    .isInt({ min: 0, max: 100 })
-    .withMessage("Disease 2 percentage must be between 0 and 100"),
-  check("modelResults.disease3.name")
-    .notEmpty()
-    .withMessage("Disease 3 name is required")
-    .isString()
-    .withMessage("Disease 3 name must be a string")
-    .trim(),
-  check("modelResults.disease3.percentage")
-    .notEmpty()
-    .withMessage("Disease 3 percentage is required")
-    .isInt({ min: 0, max: 100 })
-    .withMessage("Disease 3 percentage must be between 0 and 100"),
-
   validatorMiddleware,
 ];
 

@@ -96,11 +96,11 @@ exports.SignupValidator = [
     .notEmpty()
     .withMessage("Full Address is required"),
 
-  check("gender")
+  check("salutation")
     .notEmpty()
-    .withMessage("Gender is required")
-    .isIn(["male", "female", "other"])
-    .withMessage("Gender must be male, female, or other"),
+    .withMessage("salutation is required")
+    .isIn(["Mr", "Mrs", "Ms", "Mx"])
+    .withMessage("salutation must be Mr, Mrs, Ms or Mx"),
   check("Specialty").custom((value, { req }) => {
     if (req.body.role === "doctor" && (!value || value.trim() === "")) {
       throw new Error("Specialty is required for doctors");

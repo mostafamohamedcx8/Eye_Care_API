@@ -8,7 +8,12 @@ const patientSchema = new mongoose.Schema({
       required: true,
     },
   ],
-  name: {
+  firstname: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  lastname: {
     type: String,
     required: true,
     trim: true,
@@ -17,10 +22,10 @@ const patientSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
-  gender: {
+  salutation: {
     type: String,
-    enum: ["Male", "Female", "Other"],
-    required: true,
+    enum: ["Mr", "Mrs", "Ms", "Mx"],
+    required: [true, "Salutation is required"],
   },
   ethnicity: {
     type: String,

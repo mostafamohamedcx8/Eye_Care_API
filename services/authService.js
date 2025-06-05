@@ -6,85 +6,62 @@ const createToken = require("../utils/CreateToken");
 const bcrypt = require("bcrypt");
 const ApiError = require("../utils/ApiError");
 const sendEmail = require("../utils/sendemail");
+const sharp = require("sharp");
+const { v4: uuidv4 } = require("uuid");
+const multer = require("multer");
+
 // @desc    Signup
 // @route   GET /api/v1/auth/signup
 // @access  Public
-// exports.signup = asyncHandler(async (req, res, next) => {
-//   // 1-Create User
-//   const user = await User.create({
-//     firstname: req.body.firstname,
-//     lastname: req.body.lastname,
-//     email: req.body.email,
-//     password: req.body.password,
-//     passwordConfirm: req.body.passwordConfirm,
-//     gender: req.body.gender,
-//     dateOfBirth: req.body.dateOfBirth,
-//     state: req.body.state,
-//     city: req.body.city,
-//     fullAddress: req.body.fullAddress,
-//   });
 
-//   const token = createToken(user._id);
+const multerstorage = multer.memoryStorage();
+const multerFilter = function (req, file, cb) {
+  if (file.mimetype.startsWith("image")) {
+    cb(null, true);
+  } else {
+    cb(new ApiError("Not an image! Please upload only images.", 400), false);
+  }
+};
+const upload = multer({ storage: multerstorage, fileFilter: multerFilter });
 
-//   // 2- Generate 6-digit email verification code
-//   const verificationLink = Math.floor(
-//     100000 + Math.random() * 900000
-//   ).toString();
-//   const hashedVerificationCode = crypto
-//     .createHash("sha256")
-//     .update(verificationCode)
-//     .digest("hex");
+exports.UploadSingalImage = upload.single("imagemedicallicense");
 
-//   // Save verification code info to DB
-//   user.emailVerificationCode = hashedVerificationCode;
-//   user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
-//   user.emailVerified = false;
+exports.resizeimage = asyncHandler(async (req, res, next) => {
+  const filename = `user-${uuidv4()}-${Date.now()}.jpeg`;
+  if (req.file) {
+    await sharp(req.file.buffer)
+      .resize(600, 600)
+      .toFormat("jpeg")
+      .jpeg({ quality: 99 })
+      .toFile(`uploads/Image_Medical_License/${filename}`);
 
-//   await user.save();
-
-//   // 3- Send verification email
-//   const message = `Hi ${user.firstname} ${user.lastname},\n\nWelcome to Eye-Care!\n\nYour email verification code is: ${verificationCode}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
-
-//   try {
-//     await sendEmail({
-//       email: user.email,
-//       subject: "Email Verification - Eye-Care",
-//       message,
-//     });
-//   } catch (err) {
-//     user.emailVerificationCode = undefined;
-//     user.emailVerificationExpires = undefined;
-//     user.emailVerified = undefined;
-//     await user.save();
-
-//     return next(new ApiError("Failed to send verification email", 500));
-//   }
-
-//   // 4- Response
-//   res.status(201).json({
-//     status: "success",
-//     message:
-//       "Account created. Please check your email for the verification code.",
-//     data: {
-//       userId: user._id,
-//       email: user.email,
-//     },
-//   });
-// });
+    req.body.imagemedicallicense = filename;
+  }
+  next();
+});
 
 exports.signup = asyncHandler(async (req, res, next) => {
   // 1- Create User
+  const dateOfBirth = {
+    day: parseInt(req.body["dateOfBirth.day"]),
+    month: req.body["dateOfBirth.month"],
+    year: parseInt(req.body["dateOfBirth.year"]),
+  };
   const user = await User.create({
     firstname: req.body.firstname,
     lastname: req.body.lastname,
     email: req.body.email,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
-    gender: req.body.gender,
-    dateOfBirth: req.body.dateOfBirth,
+    salutation: req.body.salutation,
+    dateOfBirth,
     state: req.body.state,
     city: req.body.city,
     fullAddress: req.body.fullAddress,
+    postalCode: req.body.postalCode,
+    imagemedicallicense: req.body.imagemedicallicense,
+    Specialty: req.body.Specialty,
+    role: req.body.role,
   });
 
   // 2- Generate token for email verification
@@ -104,7 +81,7 @@ exports.signup = asyncHandler(async (req, res, next) => {
   await user.save();
 
   // 3- Send verification email with link
-  const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${rawToken}`;
+  const verificationUrl = `http://localhost:3000/verify-email?token=${rawToken}`;
   const message = `Hi ${user.firstname} ${user.lastname},
 
 Welcome to Eye-Care!
@@ -171,7 +148,7 @@ exports.verifyEmailCode = asyncHandler(async (req, res, next) => {
       .update(newRawToken)
       .digest("hex");
 
-    const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${newRawToken}`;
+    const verificationUrl = `http://localhost:3000/verify-email?token=${newRawToken}`;
     user.emailVerificationToken = newHashedToken;
     user.emailVerificationExpires = Date.now() + 10 * 60 * 1000;
 
@@ -208,19 +185,65 @@ exports.verifyEmailCode = asyncHandler(async (req, res, next) => {
     message: "Email verified successfully",
   });
 });
+
 // @desc    Login
 // @route   GET /api/v1/auth/login
 // @access  Public
+
 // exports.login = asyncHandler(async (req, res, next) => {
 //   // 1- Find User
-//   const user = await User.findOne({ email: req.body.email });
+//   const user = await User.findOne({
+//     email: req.body.email,
+//     role: req.body.role,
+//   });
 //   if (!user || !(await bcrypt.compare(req.body.password, user.password))) {
-//     return next(new ApiError("Invalid email or password", 401));
+//     return next(new ApiError("Invalid email or password or role", 401));
 //   }
-//   // 3- create token
+
+//   // 2- Check if email is verified
+//   if (!user.emailVerified) {
+//     // Generate a new verification code
+//     const NewrawToken = crypto.randomBytes(32).toString("hex");
+
+//     // Hash the token before saving it to the DB
+//     const NewhashedToken = crypto
+//       .createHash("sha256")
+//       .update(NewrawToken)
+//       .digest("hex");
+
+//     // Update user with new verification code and expiration
+//     const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${NewrawToken}`;
+//     user.emailVerificationToken = NewhashedToken;
+//     user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+
+//     await user.save();
+
+//     // Send verification email
+//     const message = `Hi ${user.firstname} ${user.lastname},\n\nYou need to verify your email to log in.\n\nHere is your verification Link: ${verificationUrl}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
+
+//     try {
+//       await sendEmail({
+//         email: user.email,
+//         subject: "Email Verification Required - Eye-Care",
+//         message,
+//       });
+//     } catch (err) {
+//       return next(new ApiError("Failed to send verification email", 500));
+//     }
+
+//     return res.status(403).json({
+//       status: "fail",
+//       message:
+//         "Your email is not verified. We have sent a new verification Link to your email.",
+//     });
+//   }
+
+//   // 3- Create token if email is verified
 //   const token = createToken(user._id);
+
 //   // 4- Send response
-//   res.status(201).json({
+//   res.status(200).json({
+//     status: "success",
 //     data: user,
 //     token,
 //   });
@@ -238,24 +261,19 @@ exports.login = asyncHandler(async (req, res, next) => {
 
   // 2- Check if email is verified
   if (!user.emailVerified) {
-    // Generate a new verification code
     const NewrawToken = crypto.randomBytes(32).toString("hex");
-
-    // Hash the token before saving it to the DB
     const NewhashedToken = crypto
       .createHash("sha256")
       .update(NewrawToken)
       .digest("hex");
 
-    // Update user with new verification code and expiration
     const verificationUrl = `http://75.119.150.159:3000/verify-email?token=${NewrawToken}`;
     user.emailVerificationToken = NewhashedToken;
-    user.emailVerificationExpires = Date.now() + 10 * 60 * 1000; // 10 mins
+    user.emailVerificationExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    // Send verification email
-    const message = `Hi ${user.firstname} ${user.lastname},\n\nYou need to verify your email to log in.\n\nHere is your verification Link: ${verificationUrl}\n\nPlease enter this code to verify your account.\n\nThanks,\nEye-Care Team`;
+    const message = `Hi ${user.firstname} ${user.lastname},\n\nYou need to verify your email to log in.\n\nHere is your verification Link: ${verificationUrl}\n\nThanks,\nEye-Care Team`;
 
     try {
       await sendEmail({
@@ -270,14 +288,23 @@ exports.login = asyncHandler(async (req, res, next) => {
     return res.status(403).json({
       status: "fail",
       message:
-        "Your email is not verified. We have sent a new verification Link to your email.",
+        "Your email is not verified. We have sent a new verification link to your email.",
     });
   }
 
-  // 3- Create token if email is verified
+  // ✅ 3- Check if license is verified
+  if (!user.licenseVerified) {
+    return res.status(403).json({
+      status: "fail",
+      message:
+        "Your medical license is still under review. You will be notified by email once it's verified.",
+    });
+  }
+
+  // 4- Create token if both email and license are verified
   const token = createToken(user._id);
 
-  // 4- Send response
+  // 5- Send response
   res.status(200).json({
     status: "success",
     data: user,
