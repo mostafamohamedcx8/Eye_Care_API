@@ -6,6 +6,22 @@ const { uploadMixOfImages } = require("../middleware/uploadimageMiddleware");
 const sharp = require("sharp");
 const { v4: uuidv4 } = require("uuid");
 const Patient = require("../models/patientModel");
+const axios = require("axios");
+const FormData = require("form-data");
+const fs = require("fs");
+const path = require("path");
+
+async function sendImageToFlask(imagePath, eyeSide) {
+  const form = new FormData();
+  form.append("eye_side", eyeSide);
+  form.append("image", fs.createReadStream(imagePath));
+
+  const response = await axios.post("http://localhost:5000/predict", form, {
+    headers: form.getHeaders(),
+  });
+
+  return response.data;
+}
 
 exports.UploadImages = uploadMixOfImages([
   {
@@ -97,33 +113,100 @@ exports.updateReport = asyncHandler(async (req, res, next) => {
 //     .status(201)
 //     .json({ message: "Report created successfully", data: report });
 // });
+// exports.createReport = asyncHandler(async (req, res) => {
+//   if (req.user.role !== "optician") {
+//     return res
+//       .status(403)
+//       .json({ message: "Only opticians can create reports" });
+//   }
+//   const patientId = req.params.id;
+
+//   const reportData = {
+//     ...req.body,
+//     patient: patientId,
+//     optician: req.user._id,
+//   };
+
+//   // 1. إنشاء الريبورت
+//   const report = await ReportOfPatient.create(reportData);
+
+//   // 2. تحديث المريض بإضافة الريبورت إلى الـ array
+//   await Patient.findByIdAndUpdate(
+//     report.patient, // لازم patient ID يكون ضمن بيانات الريبورت
+//     { $push: { report: report._id } },
+//     { new: true, useFindAndModify: false }
+//   );
+
+//   res
+//     .status(201)
+//     .json({ message: "Report created successfully", data: report });
+// });
+
 exports.createReport = asyncHandler(async (req, res) => {
   if (req.user.role !== "optician") {
     return res
       .status(403)
       .json({ message: "Only opticians can create reports" });
   }
+
   const patientId = req.params.id;
+  let modelResults = { rightEye: "", leftEye: "" };
+
+  // Right Eye
+  if (req.body.eyeExamination?.rightEye?.images?.length > 0) {
+    const rightImageURL = req.body.eyeExamination.rightEye.images[0];
+    const rightFilename = path.basename(rightImageURL);
+    const rightImagePath = path.join(
+      __dirname,
+      `../uploads/funds/${rightFilename}`
+    );
+
+    try {
+      const result = await sendImageToFlask(rightImagePath, "right");
+      modelResults.rightEye = JSON.stringify(result);
+    } catch (error) {
+      console.error("Error predicting right eye:", error.message);
+      modelResults.rightEye = JSON.stringify({ error: "Prediction failed" });
+    }
+  }
+
+  // Left Eye
+  if (req.body.eyeExamination?.leftEye?.images?.length > 0) {
+    const leftImageURL = req.body.eyeExamination.leftEye.images[0];
+    const leftFilename = path.basename(leftImageURL);
+    const leftImagePath = path.join(
+      __dirname,
+      `../uploads/funds/${leftFilename}`
+    );
+
+    try {
+      const result = await sendImageToFlask(leftImagePath, "left");
+      modelResults.leftEye = JSON.stringify(result);
+    } catch (error) {
+      console.error("Error predicting left eye:", error.message);
+      modelResults.leftEye = JSON.stringify({ error: "Prediction failed" });
+    }
+  }
 
   const reportData = {
     ...req.body,
+    modelResults,
     patient: patientId,
     optician: req.user._id,
   };
 
-  // 1. إنشاء الريبورت
   const report = await ReportOfPatient.create(reportData);
 
-  // 2. تحديث المريض بإضافة الريبورت إلى الـ array
   await Patient.findByIdAndUpdate(
-    report.patient, // لازم patient ID يكون ضمن بيانات الريبورت
+    report.patient,
     { $push: { report: report._id } },
     { new: true, useFindAndModify: false }
   );
 
-  res
-    .status(201)
-    .json({ message: "Report created successfully", data: report });
+  res.status(201).json({
+    message: "Report created successfully",
+    data: report,
+  });
 });
 
 exports.createDoctorFeedback = asyncHandler(async (req, res) => {

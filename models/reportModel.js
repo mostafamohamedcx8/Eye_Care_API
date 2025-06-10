@@ -126,11 +126,9 @@ const reportOfPatientSchema = new mongoose.Schema({
   modelResults: {
     rightEye: {
       type: String, // بنخزن JSON string
-      required: true,
     },
     leftEye: {
       type: String,
-      required: true,
     },
   },
   doctorFeedbacks: [
@@ -142,7 +140,6 @@ const reportOfPatientSchema = new mongoose.Schema({
       rightEyeFeedback: {
         aiPredictionCorrect: {
           type: String,
-          enum: ["correct", "incorrect", "uncertain"],
         },
         comment: {
           type: String,
@@ -152,7 +149,6 @@ const reportOfPatientSchema = new mongoose.Schema({
       leftEyeFeedback: {
         aiPredictionCorrect: {
           type: String,
-          enum: ["correct", "incorrect", "uncertain"],
         },
         comment: {
           type: String,

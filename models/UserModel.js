@@ -94,10 +94,19 @@ userSchema.pre("save", async function (next) {
 });
 
 const setImageURLs = (doc) => {
-  if (doc.imagemedicallicense) {
-    doc.Image_Medical_License = `${process.env.BASE_URL}/Image_Medical_License/${doc.Image_Medical_License}`;
+  if (
+    doc.imagemedicallicense &&
+    !doc.imagemedicallicense.startsWith("http://") &&
+    !doc.imagemedicallicense.startsWith("https://")
+  ) {
+    doc.imagemedicallicense = `${process.env.BASE_URL}/Image_Medical_License/${doc.imagemedicallicense}`;
   }
-  if (doc.imageProfile) {
+
+  if (
+    doc.imageProfile &&
+    !doc.imageProfile.startsWith("http://") &&
+    !doc.imageProfile.startsWith("https://")
+  ) {
     doc.imageProfile = `${process.env.BASE_URL}/profile/${doc.imageProfile}`;
   }
 };
@@ -106,5 +115,4 @@ const setImageURLs = (doc) => {
 userSchema.post("init", setImageURLs);
 
 // create
-userSchema.post("save", setImageURLs);
 module.exports = mongoose.model("User", userSchema);
