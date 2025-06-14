@@ -36,10 +36,20 @@ const patientSchema = new mongoose.Schema({
     ref: "User",
     required: true,
   },
+  archivedByOptician: {
+    type: Boolean,
+    default: false,
+  },
   doctors: [
     {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      doctor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+      archived: {
+        type: Boolean,
+        default: false,
+      },
     },
   ],
 });
@@ -48,6 +58,14 @@ patientSchema.pre(/^find/, function (next) {
   this.populate({
     path: "optician",
     select: "firstname  lastname  _id",
+  });
+  next();
+});
+
+patientSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: "report",
+    select: "doctorFeedbacks modelResults  _id",
   });
   next();
 });

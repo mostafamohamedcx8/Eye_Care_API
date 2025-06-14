@@ -145,6 +145,14 @@ const reportOfPatientSchema = new mongoose.Schema({
           type: String,
           trim: true,
         },
+        diagnosis: {
+          type: String,
+          trim: true,
+        },
+        recommendedAction: {
+          type: String,
+          trim: true,
+        },
       },
       leftEyeFeedback: {
         aiPredictionCorrect: {
@@ -154,14 +162,18 @@ const reportOfPatientSchema = new mongoose.Schema({
           type: String,
           trim: true,
         },
+        diagnosis: {
+          type: String,
+          trim: true,
+        },
+        recommendedAction: {
+          type: String,
+          trim: true,
+        },
       },
-      diagnosis: {
-        type: String,
-        trim: true,
-      },
-      recommendedAction: {
-        type: String,
-        trim: true,
+      readed: {
+        type: Boolean,
+        default: false,
       },
       createdAt: {
         type: Date,

@@ -234,8 +234,8 @@ exports.createDoctorFeedback = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "Associated patient not found" });
   }
 
-  const isDoctorAssigned = patient.doctors.some((docId) =>
-    docId.equals(doctorId)
+  const isDoctorAssigned = patient.doctors.some(
+    (doc) => doc.doctor?.toString() === doctorId.toString()
   );
 
   if (!isDoctorAssigned) {
@@ -363,8 +363,12 @@ exports.getMyReport = asyncHandler(async (req, res, next) => {
   if (
     (role === "optician" &&
       report.optician._id.toString() !== userId.toString()) ||
-    (role === "doctor" && !report.patient.doctors.includes(userId.toString()))
+    (role === "doctor" &&
+      !report.patient.doctors.some(
+        (doc) => doc.doctor.toString() === userId.toString()
+      ))
   ) {
+    console.log(report.patient.doctors);
     return next(
       new ApiError(`You are not authorized to access this report`, 403)
     );
@@ -422,4 +426,43 @@ exports.deleteMyReport = asyncHandler(async (req, res, next) => {
   });
 
   res.status(204).send();
+});
+
+exports.markDoctorFeedbackAsRead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { doctorId } = req.body;
+
+  // 1. تأكد إن اللي بيطلب Optician
+  if (req.user.role !== "optician") {
+    return res.status(403).json({
+      message: "Only opticians can mark feedbacks as read",
+    });
+  }
+
+  // 2. تأكد إن التقرير موجود
+  const report = await ReportOfPatient.findById(id);
+  if (!report) {
+    return res.status(404).json({ message: "Report not found" });
+  }
+
+  // 3. لاقي الفيدباك اللي من الدكتور المطلوب
+  const feedback = report.doctorFeedbacks.find((fb) =>
+    fb.doctor.equals(doctorId)
+  );
+
+  if (!feedback) {
+    return res
+      .status(404)
+      .json({ message: "Feedback from this doctor not found in the report" });
+  }
+
+  // 4. نحدث حالة القراءة
+  feedback.readed = true;
+
+  await report.save();
+
+  res.status(200).json({
+    message: "Doctor feedback marked as read",
+    data: feedback,
+  });
 });

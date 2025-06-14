@@ -11,6 +11,9 @@ const {
   updateMypatient,
   sendPatientToDoctor,
   deleteMyPatient,
+  getArchivedPatients,
+  toggleArchivePatient,
+  getAllPatientReportStatsByDoctor,
 } = require("../services/patientService");
 
 const authService = require("../services/authService"); // Adjust path to your authService
@@ -37,12 +40,20 @@ router
     createPatientValidator,
     createPatient
   );
+router.route("/ReportStats").get(
+  authService.allowedTo("doctor"),
+
+  getAllPatientReportStatsByDoctor
+);
 router
   .route("/send")
   .post(authService.allowedTo("optician"), sendPatientToDoctor);
 
 router.route("/mypatients").get(getMyPatients); // Get all patients for the logged-in optician
+router.route("/myArchivepatients").get(getArchivedPatients); // Get all patients for the logged-in optician
+
 router.route("/myPatient/:id").get(getMyPatientValidator, getMyPatient);
+router.route("/myPatient/:id").put(toggleArchivePatient);
 router.get(
   "/myPatientwithreport/:id",
   getMyPatientValidator,

@@ -12,6 +12,7 @@ const {
   UploadImages,
   resizeimage,
   createDoctorFeedback,
+  markDoctorFeedbackAsRead,
 } = require("../services/reportService");
 const authService = require("../services/authService");
 const {
@@ -34,6 +35,10 @@ router
     deleteMyReportOfPatientValidator,
     deleteMyReport
   );
+router
+  .route("/feedback/:id")
+  .put(authService.allowedTo("optician"), markDoctorFeedbackAsRead); // Get a specific patient by ID
+
 router
   .route("/myreport/:id")
   .put(authService.allowedTo("doctor"), createDoctorFeedback);
